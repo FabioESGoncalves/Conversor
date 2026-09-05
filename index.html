@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Conversor de Planilha | CSV/CVS para XLSX</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="shell">
+    <header class="topbar">
+      <div class="brand-wrap">
+        <div class="brand-mark">CP</div>
+        <div>
+          <div class="eyebrow">Ferramenta interna</div>
+          <h1>Conversor de Planilha</h1>
+          <p class="subtitle">Solução para conversão de arquivos CSV/CVS em XLSX, com filtragem por <b>Estado = Não iniciado</b>, reaproveitamento automático da coluna <b>Status/Resumo</b> e cruzamento inteligente por <b>Número de Ordem</b>.</p>
+        </div>
+      </div>
+      <aside class="author-card">
+        <p class="author-title">Responsável</p>
+        <p class="author-name">Fábio Gonçalves</p>
+        <p class="author-role">Gestão e organização do fluxo de tratamento das planilhas operacionais.</p>
+        <a class="author-email" href="mailto:fabiogoncalves.contato@gmail.com">fabiogoncalves.contato@gmail.com</a>
+      </aside>
+    </header>
+
+    <section class="panel hero">
+      <div class="section-header">
+        <div>
+          <h2>Visão geral do processo</h2>
+          <p>A ferramenta foi estruturada para uso operacional diário, com interface simplificada, saída padronizada e controle visual dos principais indicadores do processamento.</p>
+        </div>
+      </div>
+      <div class="hero-grid">
+        <div class="hero-card"><b>Entrada principal</b><span>Importação do CSV/CVS atual baixado do sistema.</span></div>
+        <div class="hero-card"><b>Cruzamento opcional</b><span>Leitura da planilha XLSX anterior para reaproveitar o Status/Resumo.</span></div>
+        <div class="hero-card"><b>Controle operacional</b><span>Contagem automática de notas atuais, existentes e novas.</span></div>
+        <div class="hero-card"><b>Saída padronizada</b><span>Planilha XLSX final com datas válidas, bordas e colunas na ordem definida.</span></div>
+      </div>
+    </section>
+
+    <section class="panel main">
+      <div class="section-header">
+        <div>
+          <h2>Importação e processamento</h2>
+          <p>Selecione o arquivo CSV/CVS atual e, se necessário, informe a planilha tratada anterior. O sistema irá comparar automaticamente os dados e atualizar a coluna <b>Status/Resumo</b> na nova saída.</p>
+        </div>
+        <div class="version-chip">SheetJS 0.18.5 • Versão 1.0</div>
+      </div>
+
+      <div class="workflow">
+        <div class="step">
+          <div class="step-head"><span class="step-index">1</span>Selecionar arquivo atual</div>
+          <p>Carregue o CSV/CVS recém-baixado para iniciar a leitura e o filtro das linhas elegíveis.</p>
+        </div>
+        <div class="step">
+          <div class="step-head"><span class="step-index">2</span>Informar planilha anterior</div>
+          <p>Opcionalmente, utilize a XLSX tratada anterior para preencher o Status/Resumo já existente.</p>
+        </div>
+        <div class="step">
+          <div class="step-head"><span class="step-index">3</span>Gerar e baixar resultado</div>
+          <p>O arquivo final é montado em XLSX com padronização visual e pronto para uso operacional.</p>
+        </div>
+      </div>
+
+      <div class="upload-grid">
+        <div class="upload-box">
+          <div class="upload-head">
+            <h3>Arquivo novo</h3>
+            <span class="label-chip required">Obrigatório</span>
+          </div>
+          <div id="dropZone" class="dropzone" tabindex="0">
+            <div class="drop-icon">⇧</div>
+            <strong>Adicionar arquivo CSV/CVS</strong>
+            <span>Arraste o arquivo para esta área ou clique para selecionar manualmente.</span>
+            <div class="drop-cta">Selecionar arquivo</div>
+            <input id="fileInput" type="file" accept=".csv,.cvs,text/csv">
+          </div>
+          <div id="fileInfo" class="file-card">
+            <div class="file-name" id="fileName">—</div>
+            <div class="file-size" id="fileSize">—</div>
+          </div>
+        </div>
+
+        <div class="upload-box">
+          <div class="upload-head">
+            <h3>Planilha anterior</h3>
+            <span class="label-chip optional">Opcional</span>
+          </div>
+          <div id="previousDropZone" class="dropzone" tabindex="0">
+            <div class="drop-icon">↔</div>
+            <strong>Adicionar planilha XLSX</strong>
+            <span>Utilize a planilha tratada anterior para fazer o cruzamento por Número de Ordem.</span>
+            <div class="drop-cta">Selecionar planilha</div>
+            <input id="previousFileInput" type="file" accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel">
+          </div>
+          <div id="previousFileInfo" class="file-card">
+            <div class="file-name" id="previousFileName">Nenhuma planilha anterior selecionada</div>
+            <div class="file-size" id="previousFileSize">Opcional</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button id="convertBtn" class="btn-primary" disabled>Processar planilha</button>
+        <button id="downloadBtn" class="btn-secondary" disabled>Baixar arquivo XLSX</button>
+      </div>
+      <div id="actionHint" class="action-hint"></div>
+
+      <div class="progress-wrap">
+        <div class="progress-head">
+          <span id="progressText">Aguardando arquivo…</span>
+          <b id="progressPct">0%</b>
+        </div>
+        <div class="progress-bar"><div id="progressFill" class="progress-fill"></div></div>
+      </div>
+    </section>
+
+    <div class="content-grid">
+      <section class="panel card-body">
+        <h2>Resultado do processamento</h2>
+        <div class="stats-grid">
+          <div class="metric current"><b id="totalRows">0</b><small>Linhas lidas</small></div>
+          <div class="metric"><b id="filteredRows">0</b><small>Linhas filtradas</small></div>
+          <div class="metric"><b id="dateRows">0</b><small>Datas convertidas</small></div>
+        </div>
+
+        <div class="subsection-title">Cruzamento</div>
+        <div class="compare-grid">
+          <div class="metric current"><b id="currentCount">0</b><small>Notas atuais</small></div>
+          <div class="metric existing"><b id="existingCount">0</b><small>Já existentes</small></div>
+          <div class="metric new"><b id="newCount">0</b><small>Notas novas</small></div>
+        </div>
+
+        <div class="subsection-title">Distribuição por Faixa</div>
+        <div class="priority-grid" id="priorityGrid">
+          <div class="priority-card"><b id="countP1">0</b><span>P1</span></div>
+          <div class="priority-card"><b id="countP2">0</b><span>P2</span></div>
+          <div class="priority-card"><b id="countP3">0</b><span>P3</span></div>
+          <div class="priority-card"><b id="countP4">0</b><span>P4</span></div>
+          <div class="priority-card"><b id="countP5">0</b><span>P5</span></div>
+          <div class="priority-card"><b id="countSemFaixa">0</b><span>Sem faixa</span></div>
+        </div>
+      </section>
+
+      <section class="panel card-body">
+        <h2>Log de execução</h2>
+        <div id="log" class="log-box"><div class="muted">Nenhum processamento iniciado.</div></div>
+      </section>
+    </div>
+
+    <section class="panel columns">
+      <div class="columns-head">
+        <div>
+          <h2>Colunas de saída</h2>
+          <p>A coluna <b>Status/Resumo</b> é adicionada após <b>Faixa</b> e é a referência utilizada no cruzamento entre a planilha atual e a planilha tratada anterior.</p>
+        </div>
+      </div>
+      <div class="chips" id="chips"></div>
+    </section>
+
+    <div class="footer">© <span id="currentYear"></span> Todos os direitos reservados • <b>Conversor de Planilha</b></div>
+  </div>
+
+<script src="app.js"></script>
+</body>
+</html>
