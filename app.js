@@ -6,32 +6,112 @@
   const DATE_FORMAT = "dd/mm/yyyy hh:mm:ss";
   const CHUNK_SIZE = 500;
 
-  const OUTPUT_COLUMNS = [
-    "Número de Ordem",
+  const INITIAL_OUTPUT_HINTS = [
+    "Número de Ordem / TSK",
     "Estado",
-    "Fim SLA",
-    "CM",
-    "Criação do NTT",
-    "END_ID",
-    "NE ID",
-    "Regra usuário criador",
-    "Tipo da Falha",
-    "Título do Alarme",
-    "Faixa",
-    "Status/Resumo"
+    "Demais colunas da origem",
+    "Status/Resumo / OBS"
   ];
 
-  const REQUIRED_COLUMNS = [
-    "Número de Ordem",
-    "Estado",
-    "Fim SLA",
-    "CM",
-    "Criação do NTT",
-    "END_ID",
-    "NE ID",
-    "Regra usuário criador",
-    "Tipo da Falha",
-    "Título do Alarme"
+  // Mapa central de compatibilidade. Para adicionar novos formatos no futuro,
+  // basta incluir um novo alias no campo correspondente.
+  const COLUMN_SCHEMA = [
+    {
+      key: "order",
+      output: "Número de Ordem",
+      standard: ["Número de Ordem"],
+      aliases: ["TSK"],
+      required: true,
+      operational: true
+    },
+    {
+      key: "state",
+      output: "Estado",
+      standard: ["Estado"],
+      aliases: [],
+      required: true,
+      operational: true
+    },
+    {
+      key: "slaEnd",
+      output: "Fim SLA",
+      standard: ["Fim SLA"],
+      aliases: [],
+      required: false,
+      operational: true
+    },
+    {
+      key: "cm",
+      output: "CM",
+      standard: ["CM"],
+      aliases: [],
+      required: false,
+      operational: true
+    },
+    {
+      key: "nttCreated",
+      output: "Criação do NTT",
+      standard: ["Criação do NTT"],
+      aliases: [],
+      required: false,
+      operational: true
+    },
+    {
+      key: "endId",
+      output: "END_ID",
+      standard: ["END_ID"],
+      aliases: [],
+      required: false,
+      operational: true
+    },
+    {
+      key: "neId",
+      output: "NE ID",
+      standard: ["NE ID"],
+      aliases: [],
+      required: false,
+      operational: true
+    },
+    {
+      key: "creatorRule",
+      output: "Regra usuário criador",
+      standard: ["Regra usuário criador"],
+      aliases: [],
+      required: false,
+      operational: true
+    },
+    {
+      key: "failureType",
+      output: "Tipo da Falha",
+      standard: ["Tipo da Falha"],
+      aliases: [],
+      required: false,
+      operational: true
+    },
+    {
+      key: "alarmTitle",
+      output: "Título do Alarme",
+      standard: ["Título do Alarme"],
+      aliases: [],
+      required: false,
+      operational: true
+    },
+    {
+      key: "priority",
+      output: "Faixa",
+      standard: ["Faixa Priorização Dispatching", "Faixa"],
+      aliases: ["P"],
+      required: false,
+      operational: true
+    },
+    {
+      key: "status",
+      output: "Status/Resumo",
+      standard: ["Status/Resumo"],
+      aliases: ["OBS"],
+      required: false,
+      operational: false
+    }
   ];
 
   const $ = id => document.getElementById(id);
@@ -60,12 +140,18 @@
 
   currentYear.textContent = String(new Date().getFullYear());
 
-  OUTPUT_COLUMNS.forEach(c => {
-    const el = document.createElement("span");
-    el.className = "chip";
-    el.textContent = c;
-    $("chips").appendChild(el);
-  });
+  function renderOutputColumns(columns) {
+    const container = $("chips");
+    container.innerHTML = "";
+    columns.forEach(c => {
+      const el = document.createElement("span");
+      el.className = "chip";
+      el.textContent = c;
+      container.appendChild(el);
+    });
+  }
+
+  renderOutputColumns(INITIAL_OUTPUT_HINTS);
 
   function setActionHint(message = "") {
     actionHint.innerHTML = message;
@@ -88,7 +174,7 @@
     }
 
     if (state === "processing") {
-      setActionHint('Processamento em andamento. Aguarde a conclusão da análise.');
+      setActionHint("Processamento em andamento. Aguarde a conclusão da análise.");
       return;
     }
 
@@ -101,7 +187,9 @@
     const div = document.createElement("div");
     if (type) div.className = type;
     div.textContent = `[${new Date().toLocaleTimeString("pt-BR")}] ${message}`;
-    if (logEl.firstElementChild && logEl.firstElementChild.classList.contains("muted")) logEl.innerHTML = "";
+    if (logEl.firstElementChild && logEl.firstElementChild.classList.contains("muted")) {
+      logEl.innerHTML = "";
+    }
     logEl.appendChild(div);
     logEl.scrollTop = logEl.scrollHeight;
   }
@@ -118,29 +206,18 @@
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "")
       .toLowerCase()
+      .replace(/[_-]+/g, " ")
       .replace(/\s+/g, " ")
       .trim();
   }
 
-  function findColumnIndex(indexByName, aliases) {
-    for (const alias of aliases) {
-      const index = indexByName.get(normalizeText(alias));
-      if (index !== undefined) return index;
-    }
-    return undefined;
-  }
-
-  function parseSupportedDate(value) {
-    if (value instanceof Date && !Number.isNaN(value.getTime())) {
-      return new Date(value.getTime());
-    }
-    return parseBrazilDate(value);
-  }
-
-  function getInputTypeLabel(fileName = "") {
-    const name = String(fileName).toLowerCase();
-    if (name.endsWith(".xlsx") || name.endsWith(".xls")) return "XLSX";
-    return "CSV/CVS";
+  function normalizeHeaderForLookup(value) {
+    return String(value ?? "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .replace(/\s+/g, " ")
+      .trim();
   }
 
   function yieldToBrowser() {
@@ -190,15 +267,247 @@
     return date;
   }
 
+  function parseSupportedDate(value) {
+    if (value instanceof Date && !Number.isNaN(value.getTime())) {
+      return new Date(value.getTime());
+    }
+    return parseBrazilDate(value);
+  }
+
   function chooseEncoding(arrayBuffer) {
     return arrayBuffer;
   }
 
+  function getInputTypeLabel(name = "") {
+    const lower = String(name).toLowerCase();
+    if (lower.endsWith(".xlsx") || lower.endsWith(".xls")) return "XLSX";
+    return "CSV/CVS";
+  }
+
   function getOutputFileName(originalName) {
-    const name = String(originalName || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+    const name = String(originalName || "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase();
+
     if (name.includes("merielem") || name.includes("notas na fila es")) return "Notas na fila ES.xlsx";
     if (name.includes("vinicius") || name.includes("notas na fila bxd")) return "Notas na fila Bxd.xlsx";
     return "Notas na fila.xlsx";
+  }
+
+  function buildHeaderIndex(originalHeader) {
+    const indexByName = new Map();
+    originalHeader.forEach((value, index) => {
+      const normalized = normalizeHeaderForLookup(value);
+      if (normalized && !indexByName.has(normalized)) indexByName.set(normalized, index);
+    });
+    return indexByName;
+  }
+
+  function resolveColumn(indexByName, definition) {
+    for (const name of definition.standard) {
+      const index = indexByName.get(normalizeHeaderForLookup(name));
+      if (index !== undefined) {
+        return { index, sourceName: name, matchType: "standard" };
+      }
+    }
+
+    for (const name of definition.aliases) {
+      const index = indexByName.get(normalizeHeaderForLookup(name));
+      if (index !== undefined) {
+        return { index, sourceName: name, matchType: "alias" };
+      }
+    }
+
+    return null;
+  }
+
+  function levenshteinDistance(a, b) {
+    const s = normalizeText(a);
+    const t = normalizeText(b);
+    const rows = s.length + 1;
+    const cols = t.length + 1;
+    const matrix = Array.from({ length: rows }, () => Array(cols).fill(0));
+
+    for (let i = 0; i < rows; i++) matrix[i][0] = i;
+    for (let j = 0; j < cols; j++) matrix[0][j] = j;
+
+    for (let i = 1; i < rows; i++) {
+      for (let j = 1; j < cols; j++) {
+        const cost = s[i - 1] === t[j - 1] ? 0 : 1;
+        matrix[i][j] = Math.min(
+          matrix[i - 1][j] + 1,
+          matrix[i][j - 1] + 1,
+          matrix[i - 1][j - 1] + cost
+        );
+      }
+    }
+
+    return matrix[rows - 1][cols - 1];
+  }
+
+  function similarityScore(a, b) {
+    const x = normalizeText(a);
+    const y = normalizeText(b);
+    if (!x || !y) return 0;
+    if (x === y) return 1;
+    if (x.includes(y) || y.includes(x)) return 0.9;
+
+    const maxLen = Math.max(x.length, y.length);
+    if (!maxLen) return 1;
+    return 1 - (levenshteinDistance(x, y) / maxLen);
+  }
+
+  function findPossibleMatch(definition, extras) {
+    const candidates = [...definition.standard, ...definition.aliases];
+    let best = null;
+
+    for (const extra of extras) {
+      for (const expected of candidates) {
+        const score = similarityScore(extra.name, expected);
+        if (!best || score > best.score) {
+          best = { sourceName: extra.name, expected, score };
+        }
+      }
+    }
+
+    return best && best.score >= 0.72 ? best : null;
+  }
+
+  function analyzeCurrentColumns(originalHeader) {
+    const indexByName = buildHeaderIndex(originalHeader);
+    const columns = {};
+    const usedIndexes = new Set();
+    const aliasesUsed = [];
+    const missingRequired = [];
+    const missingOptional = [];
+
+    for (const definition of COLUMN_SCHEMA) {
+      const resolved = resolveColumn(indexByName, definition);
+      columns[definition.key] = resolved;
+
+      if (resolved) {
+        usedIndexes.add(resolved.index);
+        if (resolved.matchType === "alias") {
+          aliasesUsed.push({
+            key: definition.key,
+            sourceName: originalHeader[resolved.index] || resolved.sourceName,
+            output: definition.output
+          });
+        }
+      } else if (definition.required) {
+        missingRequired.push(definition);
+      } else if (definition.operational) {
+        missingOptional.push(definition);
+      }
+    }
+
+    const extras = originalHeader
+      .map((name, index) => ({ name: String(name ?? "").trim(), index }))
+      .filter(item => item.name && !usedIndexes.has(item.index));
+
+    const operationalDefinitions = COLUMN_SCHEMA.filter(definition => definition.operational);
+    const operationalMatched = operationalDefinitions.filter(definition => columns[definition.key]).length;
+
+    const suggestions = missingRequired
+      .map(definition => ({ definition, suggestion: findPossibleMatch(definition, extras) }))
+      .filter(item => item.suggestion);
+
+    return {
+      columns,
+      aliasesUsed,
+      missingRequired,
+      missingOptional,
+      extras,
+      suggestions,
+      operationalMatched,
+      operationalTotal: operationalDefinitions.length,
+      alternative: aliasesUsed.length > 0
+    };
+  }
+
+  function logCurrentColumnDiagnostics(analysis, originalHeader) {
+    log("Analisando estrutura da planilha atual...");
+
+    if (analysis.alternative) {
+      log("Estrutura alternativa detectada. O NotaSync aplicará o mapa de compatibilidade sem alterar as colunas da origem.", "ok");
+    } else {
+      log("Estrutura reconhecida no padrão NotaSync/compatível.", "ok");
+    }
+
+    for (const alias of analysis.aliasesUsed) {
+      log(`✓ "${alias.sourceName}" reconhecida internamente como "${alias.output}".`, "ok");
+    }
+
+    for (const item of analysis.suggestions) {
+      log(`⚠ Possível correspondência para "${item.definition.output}": "${item.suggestion.sourceName}". Confirme o cabeçalho antes de processar.`, "err");
+    }
+
+    if (analysis.missingRequired.length) {
+      const requiredNames = analysis.missingRequired.map(item => item.output).join(", ");
+      const found = originalHeader.filter(Boolean).join(", ");
+      throw new Error(`Estrutura incompatível. Colunas essenciais ausentes: ${requiredNames}. Cabeçalhos encontrados: ${found}`);
+    }
+
+    log(`${originalHeader.length} colunas da planilha de origem serão preservadas na saída.`);
+
+    if (analysis.columns.status) {
+      const statusName = originalHeader[analysis.columns.status.index];
+      log(`✓ "${statusName}" será utilizada como coluna de resumo/status.`, "ok");
+    } else {
+      log('ℹ A origem não possui "Status/Resumo" ou "OBS" — somente essa coluna será adicionada ao final da saída.');
+    }
+
+    if (!analysis.columns.priority) {
+      log('ℹ Coluna de faixa/prioridade não encontrada — o cruzamento continuará funcionando normalmente.');
+    }
+
+    log("Estrutura válida para processamento flexível.", "ok");
+  }
+
+  function cellValue(row, analysis, key) {
+    const resolved = analysis.columns[key];
+    if (!resolved) return "";
+    return row[resolved.index] ?? "";
+  }
+
+  function buildDynamicOutputLayout(originalHeader, analysis) {
+    const header = originalHeader.slice();
+    let statusIndex = analysis.columns.status ? analysis.columns.status.index : -1;
+
+    if (statusIndex < 0) {
+      header.push("Status/Resumo");
+      statusIndex = header.length - 1;
+    }
+
+    return {
+      header,
+      statusIndex,
+      orderIndex: analysis.columns.order.index,
+      stateIndex: analysis.columns.state.index,
+      priorityIndex: analysis.columns.priority ? analysis.columns.priority.index : -1,
+      slaEndIndex: analysis.columns.slaEnd ? analysis.columns.slaEnd.index : -1,
+      nttCreatedIndex: analysis.columns.nttCreated ? analysis.columns.nttCreated.index : -1
+    };
+  }
+
+  function calculateColumnWidths(output) {
+    if (!output.length) return [];
+    const colCount = output[0].length;
+    const sampleLimit = Math.min(output.length, 250);
+    const widths = [];
+
+    for (let c = 0; c < colCount; c++) {
+      let maxLen = String(output[0][c] ?? "").length;
+      for (let r = 1; r < sampleLimit; r++) {
+        const value = output[r][c];
+        const len = value instanceof Date ? 19 : String(value ?? "").length;
+        if (len > maxLen) maxLen = len;
+      }
+      widths.push(Math.max(10, Math.min(40, maxLen + 2)));
+    }
+
+    return widths;
   }
 
   async function loadPreviousStatusMap(file) {
@@ -207,7 +516,7 @@
 
     log(`Lendo planilha anterior: ${file.name} (${formatBytes(file.size)}).`);
     const buffer = await file.arrayBuffer();
-    const wb = XLSX.read(buffer, { type: "array", raw: true, cellDates: false, dense: true });
+    const wb = XLSX.read(buffer, { type: "array", raw: true, cellDates: true, dense: true });
     if (!wb.SheetNames.length) throw new Error("A planilha anterior não possui abas reconhecíveis.");
 
     const preferredName = wb.SheetNames.includes(SHEET_NAME) ? SHEET_NAME : wb.SheetNames[0];
@@ -215,18 +524,35 @@
     const matrix = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: "" });
     if (!matrix.length) throw new Error("A planilha anterior está vazia.");
 
-    const header = matrix[0].map(v => normalizeText(v));
-    const orderIndex = header.indexOf(normalizeText("Número de Ordem"));
-    const statusIndex = header.indexOf(normalizeText("Status/Resumo"));
+    const originalHeader = matrix[0].map(v => String(v ?? ""));
+    const indexByName = buildHeaderIndex(originalHeader);
+    const orderDefinition = COLUMN_SCHEMA.find(item => item.key === "order");
+    const statusDefinition = COLUMN_SCHEMA.find(item => item.key === "status");
+    const order = resolveColumn(indexByName, orderDefinition);
+    const status = resolveColumn(indexByName, statusDefinition);
 
-    if (orderIndex < 0) throw new Error('A planilha anterior não possui a coluna "Número de Ordem".');
-    if (statusIndex < 0) throw new Error('A planilha anterior não possui a coluna "Status/Resumo". Gere primeiro uma planilha nesta nova versão.');
+    if (!order) {
+      throw new Error('A planilha anterior precisa possuir "Número de Ordem" ou "TSK".');
+    }
+
+    if (order.matchType === "alias") {
+      log(`✓ Planilha anterior: "${originalHeader[order.index]}" reconhecida como "Número de Ordem".`, "ok");
+    }
+
+    if (status && status.matchType === "alias") {
+      log(`✓ Planilha anterior: "${originalHeader[status.index]}" reconhecida como "Status/Resumo".`, "ok");
+    }
+
+    if (!status) {
+      log('ℹ Planilha anterior sem "Status/Resumo" ou "OBS". O cruzamento identificará notas existentes, mas o resumo anterior ficará vazio.');
+    }
 
     for (let r = 1; r < matrix.length; r++) {
       const row = matrix[r] || [];
-      const orderKey = String(row[orderIndex] ?? "").trim();
+      const orderKey = String(row[order.index] ?? "").trim();
       if (!orderKey || statusMap.has(orderKey)) continue;
-      statusMap.set(orderKey, String(row[statusIndex] ?? "").trim());
+      const statusValue = status ? String(row[status.index] ?? "").trim() : "";
+      statusMap.set(orderKey, statusValue);
     }
 
     log(`${statusMap.size} números de ordem carregados da planilha anterior.`, "ok");
@@ -266,6 +592,7 @@
 
     const inputType = getInputTypeLabel(file.name);
     progress(12, previousFile ? `Interpretando ${inputType} e preparando cruzamento...` : `Interpretando ${inputType}...`);
+
     const workbook = XLSX.read(buffer, {
       type: "array",
       raw: true,
@@ -273,7 +600,9 @@
       dense: true
     });
 
-    if (!workbook.SheetNames.length) throw new Error("O arquivo não possui uma planilha/dados reconhecíveis.");
+    if (!workbook.SheetNames.length) {
+      throw new Error("O arquivo não possui uma planilha/dados reconhecíveis.");
+    }
 
     const sourceSheet = workbook.Sheets[workbook.SheetNames[0]];
     const matrix = XLSX.utils.sheet_to_json(sourceSheet, {
@@ -284,95 +613,70 @@
 
     if (!matrix.length) throw new Error("O arquivo está vazio.");
 
-    const originalHeader = matrix[0].map(v => String(v ?? ""));
-    const normalizedHeader = originalHeader.map(normalizeText);
+    const originalHeader = matrix[0].map(v => String(v ?? "").trim());
+    const columnAnalysis = analyzeCurrentColumns(originalHeader);
+    logCurrentColumnDiagnostics(columnAnalysis, originalHeader);
 
-    const indexByName = new Map();
-    normalizedHeader.forEach((name, i) => {
-      if (name && !indexByName.has(name)) indexByName.set(name, i);
-    });
-
-    const requiredSource = REQUIRED_COLUMNS.map(name => ({
-      name,
-      index: indexByName.get(normalizeText(name))
-    }));
-
-    const missing = requiredSource.filter(x => x.index === undefined);
-    if (missing.length) {
-      throw new Error("Colunas obrigatórias ausentes: " + missing.map(x => x.name).join(", "));
-    }
-
-    const faixaIndex = findColumnIndex(indexByName, ["Faixa Priorização Dispatching", "Faixa"]);
-    if (faixaIndex === undefined) {
-      throw new Error('A coluna "Faixa Priorização Dispatching" ou "Faixa" não foi encontrada.');
-    }
-
-    const estadoIndex = indexByName.get(normalizeText("Estado"));
-    const fimSlaIndex = indexByName.get(normalizeText("Fim SLA"));
-    const criacaoIndex = indexByName.get(normalizeText("Criação do NTT"));
-    const currentStatusIndex = indexByName.get(normalizeText("Status/Resumo"));
+    const layout = buildDynamicOutputLayout(originalHeader, columnAnalysis);
+    renderOutputColumns(layout.header);
 
     $("totalRows").textContent = String(Math.max(0, matrix.length - 1));
 
-    const output = [OUTPUT_COLUMNS.slice()];
+    const output = [layout.header.slice()];
     let dateCount = 0;
     let existingCount = 0;
     let newCount = 0;
     const priorityCounts = { P1: 0, P2: 0, P3: 0, P4: 0, P5: 0, SEM_FAIXA: 0 };
 
-    log(`Cabeçalho encontrado com ${originalHeader.length} colunas.`);
-    if (currentStatusIndex !== undefined) log("Planilha atual já possui Status/Resumo; a coluna será preservada quando não houver planilha anterior.");
-    log('Filtro: coluna Estado contém "Não iniciado" (sem diferenciar maiúsculas/minúsculas e acentos).');
+    const orderSource = originalHeader[layout.orderIndex];
+    const stateSource = originalHeader[layout.stateIndex];
+    log(`Chave do cruzamento: "${orderSource}".`, "ok");
+    log(`Filtro aplicado pela coluna: "${stateSource}".`);
+    log('Filtro: Estado contém "Não iniciado" (sem diferenciar maiúsculas/minúsculas e acentos).');
 
     const dataRows = matrix.length - 1;
     for (let start = 1; start < matrix.length; start += CHUNK_SIZE) {
       const end = Math.min(matrix.length, start + CHUNK_SIZE);
 
       for (let r = start; r < end; r++) {
-        const row = matrix[r] || [];
-        const estado = normalizeText(row[estadoIndex]);
+        const sourceRow = matrix[r] || [];
+        const estado = normalizeText(sourceRow[layout.stateIndex]);
         if (!estado.includes("nao iniciado")) continue;
 
-        const values = [
-          row[indexByName.get(normalizeText("Número de Ordem"))] ?? "",
-          row[estadoIndex] ?? "",
-          row[fimSlaIndex] ?? "",
-          row[indexByName.get(normalizeText("CM"))] ?? "",
-          row[criacaoIndex] ?? "",
-          row[indexByName.get(normalizeText("END_ID"))] ?? "",
-          row[indexByName.get(normalizeText("NE ID"))] ?? "",
-          row[indexByName.get(normalizeText("Regra usuário criador"))] ?? "",
-          row[indexByName.get(normalizeText("Tipo da Falha"))] ?? "",
-          row[indexByName.get(normalizeText("Título do Alarme"))] ?? "",
-          row[faixaIndex] ?? "",
-          ""
-        ];
+        // Preserva todas as colunas existentes na planilha atual.
+        const values = originalHeader.map((_, index) => sourceRow[index] ?? "");
+        while (values.length < layout.header.length) values.push("");
 
-        const orderKey = String(values[0] ?? "").trim();
+        const orderKey = String(values[layout.orderIndex] ?? "").trim();
+
         if (previousFile) {
           if (orderKey && previousStatusMap.has(orderKey)) {
-            const previousStatus = previousStatusMap.get(orderKey);
-            values[11] = previousStatus || "";
+            values[layout.statusIndex] = previousStatusMap.get(orderKey) || "";
             existingCount++;
           } else {
-            values[11] = "N/A";
+            values[layout.statusIndex] = "N/A";
             newCount++;
           }
-        } else if (currentStatusIndex !== undefined) {
-          values[11] = String(row[currentStatusIndex] ?? "").trim();
         }
 
-        const fim = parseSupportedDate(values[2]);
-        if (fim) { values[2] = fim; dateCount++; }
-
-        const criacao = parseSupportedDate(values[4]);
-        if (criacao) { values[4] = criacao; dateCount++; }
+        for (const dateIndex of [layout.slaEndIndex, layout.nttCreatedIndex]) {
+          if (dateIndex < 0) continue;
+          const parsed = parseSupportedDate(values[dateIndex]);
+          if (parsed) {
+            values[dateIndex] = parsed;
+            dateCount++;
+          }
+        }
 
         output.push(values);
 
-        const faixa = String(values[10] ?? "").trim().toUpperCase();
-        if (/^P[1-5]$/.test(faixa)) priorityCounts[faixa]++;
-        else priorityCounts.SEM_FAIXA++;
+        if (layout.priorityIndex >= 0) {
+          const faixa = String(values[layout.priorityIndex] ?? "").trim().toUpperCase();
+          if (/^P[1-5]$/.test(faixa)) priorityCounts[faixa]++;
+          else priorityCounts.SEM_FAIXA++;
+        } else {
+          priorityCounts.SEM_FAIXA++;
+        }
       }
 
       const pct = 20 + ((end - 1) / Math.max(1, dataRows)) * 48;
@@ -393,9 +697,19 @@
     $("countSemFaixa").textContent = String(priorityCounts.SEM_FAIXA);
 
     log(`${output.length - 1} linhas filtradas.`);
-    if (previousFile) log(`Cruzamento concluído: ${existingCount} já existentes | ${newCount} novas (Status/Resumo = N/A).`, "ok");
-    else log("Sem planilha anterior: Status/Resumo será exportado em branco.");
-    log(`Faixas: P1=${priorityCounts.P1} | P2=${priorityCounts.P2} | P3=${priorityCounts.P3} | P4=${priorityCounts.P4} | P5=${priorityCounts.P5} | Sem faixa=${priorityCounts.SEM_FAIXA}.`);
+
+    if (previousFile) {
+      const statusName = layout.header[layout.statusIndex];
+      log(`Cruzamento concluído: ${existingCount} já existentes | ${newCount} novas (${statusName} = N/A nas novas).`, "ok");
+    } else if (columnAnalysis.columns.status) {
+      log(`A coluna "${layout.header[layout.statusIndex]}" da planilha atual foi preservada.`, "ok");
+    } else {
+      log('A coluna "Status/Resumo" foi adicionada ao final para permitir o tratamento futuro.');
+    }
+
+    if (layout.priorityIndex >= 0) {
+      log(`Faixas: P1=${priorityCounts.P1} | P2=${priorityCounts.P2} | P3=${priorityCounts.P3} | P4=${priorityCounts.P4} | P5=${priorityCounts.P5} | Sem faixa=${priorityCounts.SEM_FAIXA}.`);
+    }
     log(`${dateCount} valores de data reconhecidos e convertidos.`);
 
     progress(72, "Criando planilha...");
@@ -403,8 +717,9 @@
 
     const ws = XLSX.utils.aoa_to_sheet(output, { cellDates: true });
 
+    const dateIndexes = [layout.slaEndIndex, layout.nttCreatedIndex].filter(index => index >= 0);
     for (let r = 1; r < output.length; r++) {
-      for (const c of [2, 4]) {
+      for (const c of dateIndexes) {
         const value = output[r][c];
         if (value instanceof Date && !Number.isNaN(value.getTime())) {
           const cellRef = XLSX.utils.encode_cell({ r, c });
@@ -413,12 +728,14 @@
       }
     }
 
-    const widths = [22, 16, 21, 24, 22, 18, 18, 32, 24, 38, 12, 34];
-    ws["!cols"] = widths.map(wch => ({ wch }));
+    ws["!cols"] = calculateColumnWidths(output).map(wch => ({ wch }));
 
     const lastRow = Math.max(1, output.length);
-    const lastCol = OUTPUT_COLUMNS.length - 1;
-    ws["!ref"] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: lastRow - 1, c: lastCol } });
+    const lastCol = layout.header.length - 1;
+    ws["!ref"] = XLSX.utils.encode_range({
+      s: { r: 0, c: 0 },
+      e: { r: lastRow - 1, c: lastCol }
+    });
     ws["!autofilter"] = {
       ref: `A1:${XLSX.utils.encode_col(lastCol)}${lastRow}`
     };
@@ -431,10 +748,11 @@
     };
 
     for (let r = 0; r < output.length; r++) {
-      for (let c = 0; c < OUTPUT_COLUMNS.length; c++) {
+      for (let c = 0; c < layout.header.length; c++) {
         const ref = XLSX.utils.encode_cell({ r, c });
         if (!ws[ref]) ws[ref] = { v: "", t: "s" };
         const isHeader = r === 0;
+
         ws[ref].s = {
           border: thinBorder,
           alignment: isHeader
@@ -468,6 +786,7 @@
       ["02/09/26 14:37", 2026, 8, 2, 14, 37, 0],
       ["01/09/2026 10:37:33", 2026, 8, 1, 10, 37, 33]
     ];
+
     for (const [text, y, mo, d, h, mi, se] of dateTests) {
       const testDate = parseBrazilDate(text);
       if (!testDate ||
@@ -483,7 +802,7 @@
 
     let realDateCells = 0;
     for (let r = 1; r < output.length; r++) {
-      for (const c of [2, 4]) {
+      for (const c of dateIndexes) {
         const cellRef = XLSX.utils.encode_cell({ r, c });
         const cell = ws[cellRef];
         if (cell && cell.t === "d" && cell.z === DATE_FORMAT && cell.v instanceof Date) {
@@ -491,6 +810,7 @@
         }
       }
     }
+
     if (dateCount > 0 && realDateCells !== dateCount) {
       throw new Error(`Falha na validação das células de data: ${realDateCells}/${dateCount}`);
     }
@@ -499,8 +819,7 @@
     progress(100, "Concluído.");
     log(`Aba criada: "${SHEET_NAME}".`, "ok");
     log(`Arquivo pronto: ${outputFileName}.`, "ok");
-    log(`Nome definido automaticamente pelo arquivo de origem: ${outputFileName}.`, "ok");
-    log('Teste "02/09/26 14:37" → 02/09/2026 14:37:00 OK.', "ok");
+    log(`Estrutura preservada: ${layout.header.length} colunas na saída.`, "ok");
 
     downloadBtn.disabled = false;
     updateActionState("download");
@@ -525,6 +844,7 @@
       dropZone.classList.add("over");
     });
   });
+
   ["dragleave", "drop"].forEach(eventName => {
     dropZone.addEventListener(eventName, e => {
       e.preventDefault();
@@ -532,6 +852,7 @@
       dropZone.classList.remove("over");
     });
   });
+
   dropZone.addEventListener("drop", e => {
     const file = e.dataTransfer.files && e.dataTransfer.files[0];
     if (file) selectFile(file);
@@ -540,10 +861,12 @@
   function selectFile(file) {
     const name = file.name.toLowerCase();
     const supported = name.endsWith(".csv") || name.endsWith(".cvs") || name.endsWith(".xlsx") || name.endsWith(".xls");
+
     if (!supported) {
       alert("Selecione um arquivo .csv, .cvs, .xlsx ou .xls.");
       return;
     }
+
     selectedFile = file;
     generatedWorkbook = null;
     fileName.textContent = file.name;
@@ -575,6 +898,7 @@
       previousDropZone.classList.add("over");
     });
   });
+
   ["dragleave", "drop"].forEach(eventName => {
     previousDropZone.addEventListener(eventName, e => {
       e.preventDefault();
@@ -582,6 +906,7 @@
       previousDropZone.classList.remove("over");
     });
   });
+
   previousDropZone.addEventListener("drop", e => {
     const file = e.dataTransfer.files && e.dataTransfer.files[0];
     if (file) selectPreviousFile(file);
@@ -593,6 +918,7 @@
       alert("Selecione uma planilha .xlsx ou .xls.");
       return;
     }
+
     previousFile = file;
     generatedWorkbook = null;
     previousFileName.textContent = file.name;
@@ -607,11 +933,13 @@
 
   convertBtn.addEventListener("click", async () => {
     if (!selectedFile) return;
+
     convertBtn.disabled = true;
     downloadBtn.disabled = true;
     updateActionState("processing");
     logEl.innerHTML = "";
     resetCounters();
+
     try {
       await processFile(selectedFile);
     } catch (error) {
@@ -628,6 +956,7 @@
 
   downloadBtn.addEventListener("click", () => {
     if (!generatedWorkbook) return;
+
     try {
       XLSX.writeFile(generatedWorkbook, outputFileName, {
         bookType: "xlsx",
@@ -635,7 +964,7 @@
       });
       log(`Download iniciado: ${outputFileName}.`, "ok");
       downloadBtn.classList.remove("btn-attention");
-      setActionHint('Arquivo gerado com sucesso. Se necessário, você pode processar um novo arquivo a qualquer momento.');
+      setActionHint("Arquivo gerado com sucesso. Se necessário, você pode processar um novo arquivo a qualquer momento.");
     } catch (error) {
       log("Erro ao gerar o XLSX: " + (error?.message || error), "err");
     }

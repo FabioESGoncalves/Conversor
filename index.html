@@ -24,7 +24,7 @@
         <div class="brand-copy">
           <div class="eyebrow">Ferramenta interna</div>
           <h1 class="sr-only">NotaSync</h1>
-          <p class="subtitle">Conversão e cruzamento de planilhas CSV/CVS ou XLSX, com filtragem por <b>Estado = Não iniciado</b>, reaproveitamento automático da coluna <b>Status/Resumo</b> e comparação por <b>Número de Ordem</b>.</p>
+          <p class="subtitle">Conversão e cruzamento de planilhas CSV/CVS ou XLSX, com filtragem por <b>Estado = Não iniciado</b>, reaproveitamento automático da coluna <b>Status/Resumo</b> e comparação por <b>Número de Ordem ou TSK</b> e reconhecimento de estruturas alternativas.</p>
         </div>
       </div>
       <aside class="author-card">
@@ -46,7 +46,7 @@
         <div class="hero-card"><b>Entrada principal</b><span>Importação do CSV/CVS ou XLSX atual.</span></div>
         <div class="hero-card"><b>Cruzamento opcional</b><span>Leitura da planilha XLSX anterior para reaproveitar o Status/Resumo.</span></div>
         <div class="hero-card"><b>Controle operacional</b><span>Contagem automática de notas atuais, existentes e novas.</span></div>
-        <div class="hero-card"><b>Saída padronizada</b><span>Planilha XLSX final com datas válidas, bordas e colunas na ordem definida.</span></div>
+        <div class="hero-card"><b>Saída padronizada</b><span>Planilha XLSX final preservando as colunas existentes na origem, sem criar campos operacionais vazios.</span></div>
       </div>
     </section>
 
@@ -56,7 +56,7 @@
           <h2>Importação e processamento</h2>
           <p>Selecione o arquivo atual em CSV/CVS ou XLSX e, se necessário, informe a planilha tratada anterior. O sistema irá comparar automaticamente os dados e atualizar a coluna <b>Status/Resumo</b> na nova saída.</p>
         </div>
-        <div class="version-chip">SheetJS 0.18.5 • Versão 1.1</div>
+        <div class="version-chip">SheetJS 0.18.5 • Versão 1.4</div>
       </div>
 
       <div class="workflow">
@@ -101,7 +101,7 @@
           <div id="previousDropZone" class="dropzone" tabindex="0">
             <div class="drop-icon">↔</div>
             <strong>Adicionar planilha XLSX</strong>
-            <span>Utilize a planilha tratada anterior para fazer o cruzamento por Número de Ordem.</span>
+            <span>Utilize a planilha tratada anterior para fazer o cruzamento por Número de Ordem ou TSK.</span>
             <div class="drop-cta">Selecionar planilha</div>
             <input id="previousFileInput" type="file" accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel">
           </div>
@@ -164,7 +164,7 @@
       <div class="columns-head">
         <div>
           <h2>Colunas de saída</h2>
-          <p>A coluna <b>Status/Resumo</b> é adicionada após <b>Faixa</b> e é a referência utilizada no cruzamento entre a planilha atual e a planilha tratada anterior.</p>
+          <p>A saída preserva as colunas existentes da planilha atual. <b>TSK</b>, <b>P</b> e <b>OBS</b> são reconhecidas internamente como chave, faixa e resumo. Se não existir <b>Status/Resumo</b> ou <b>OBS</b>, somente a coluna <b>Status/Resumo</b> será adicionada ao final.</p>
         </div>
       </div>
       <div class="chips" id="chips"></div>
