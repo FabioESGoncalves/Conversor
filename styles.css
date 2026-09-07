@@ -57,20 +57,37 @@
 
     .brand-wrap{
       display:grid;
-      grid-template-columns:minmax(220px,280px) minmax(0,1fr);
+      grid-template-columns:auto minmax(0,1fr);
       align-items:center;
-      gap:20px;
+      gap:22px;
       min-width:0;
       flex:1 1 auto;
     }
-    .brand-logo{
+    .brand-identity{
+      display:flex;
+      align-items:center;
+      gap:11px;
+      min-width:max-content;
+    }
+    .brand-icon{
       display:block;
-      width:100%;
-      max-width:280px;
-      height:auto;
+      width:72px;
+      height:72px;
       object-fit:contain;
+      flex:0 0 auto;
       filter:drop-shadow(0 10px 20px rgba(0,0,0,.18));
     }
+    .brand-wordmark{
+      display:flex;
+      align-items:baseline;
+      font-size:clamp(28px,3vw,38px);
+      line-height:1;
+      letter-spacing:-.035em;
+      font-weight:900;
+      white-space:nowrap;
+    }
+    .brand-wordmark span{color:#dfeafa}
+    .brand-wordmark strong{color:var(--accent);font-weight:900}
     .brand-copy{min-width:0}
     .sr-only{
       position:absolute;
@@ -638,8 +655,10 @@
     @media (max-width:760px){
       .shell{width:min(100%, calc(100% - 20px)); margin:18px auto 24px}
       .topbar,.hero,.main,.card-body,.columns{padding:18px}
-      .brand-wrap{grid-template-columns:1fr;gap:12px}
-      .brand-logo{max-width:300px}
+      .brand-wrap{grid-template-columns:1fr;gap:14px}
+      .brand-identity{min-width:0}
+      .brand-icon{width:62px;height:62px}
+      .brand-wordmark{font-size:34px}
       .section-header,.columns-head{flex-direction:column}
       .hero-grid,.stats-grid,.compare-grid{grid-template-columns:1fr}
       .priority-grid{grid-template-columns:repeat(2,minmax(0,1fr))}

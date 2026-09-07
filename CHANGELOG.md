@@ -2,6 +2,16 @@
 
 Todas as alterações relevantes do NotaSync serão registradas neste arquivo.
 
+## 1.1 - 2026-09-06
+
+- Campo principal agora aceita CSV, CVS, XLSX e XLS.
+- Planilhas XLSX já tratadas ou geradas pelo NotaSync podem ser reutilizadas como planilha atual.
+- Compatibilidade com as colunas `Faixa Priorização Dispatching` e `Faixa`.
+- Preservação de `Status/Resumo` ao reprocessar uma XLSX sem planilha anterior.
+- Preservação do formato de data ao reutilizar XLSX geradas pelo sistema.
+- Correção do logotipo cortado: cabeçalho passa a usar o ícone oficial e wordmark responsivo em HTML/CSS.
+- Nomes de saída ES/Bxd são preservados ao reutilizar arquivos gerados anteriormente.
+
 ## 1.0 - 2026-09-06
 
 - Nome oficial definido como **NotaSync**.

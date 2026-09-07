@@ -1,12 +1,12 @@
 # NotaSync
 
-Ferramenta web para conversão, tratamento e cruzamento de arquivos **CSV/CVS para XLSX**, desenvolvida para simplificar o fluxo operacional de análise de notas em fila.
+Ferramenta web para conversão, tratamento e cruzamento de arquivos **CSV/CVS ou XLSX para XLSX padronizado**, desenvolvida para simplificar o fluxo operacional de análise de notas em fila.
 
 O sistema filtra automaticamente os registros com **Estado = Não iniciado**, mantém uma estrutura padronizada de colunas, converte campos de data para datas reais do Excel e permite cruzar a planilha atual com uma planilha tratada anteriormente.
 
 ## Funcionalidades
 
-- Importação de arquivos `.csv` e `.cvs`.
+- Importação de arquivos `.csv`, `.cvs`, `.xlsx` e `.xls`.
 - Filtro automático por **Estado = Não iniciado**.
 - Conversão para `.xlsx`.
 - Conversão de **Fim SLA** e **Criação do NTT** para datas reais do Excel.
@@ -26,7 +26,7 @@ O sistema filtra automaticamente os registros com **Estado = Não iniciado**, ma
 ## Fluxo de uso
 
 1. Abra o sistema no navegador.
-2. Selecione ou arraste o **CSV/CVS atual**.
+2. Selecione ou arraste o **CSV/CVS ou XLSX atual**.
 3. Opcionalmente, selecione a **XLSX tratada anterior**.
 4. Clique em **Processar planilha**.
 5. Confira os indicadores apresentados na tela.
@@ -40,6 +40,8 @@ A comparação utiliza a coluna **Número de Ordem** como chave.
 - Se a ordem não existir na planilha anterior, o sistema considera a nota como nova e preenche **Status/Resumo** com `N/A`.
 
 Isso elimina a necessidade de realizar manualmente um `PROCV` ou `PROCX` para identificar as novas notas.
+
+A planilha atual também pode ser uma XLSX já tratada ou gerada anteriormente pelo NotaSync. Nesse caso, a aplicação reconhece tanto a coluna **Faixa Priorização Dispatching** quanto a coluna **Faixa** e preserva **Status/Resumo** quando não houver uma planilha anterior selecionada.
 
 ## Colunas de saída
 
@@ -63,7 +65,6 @@ A planilha final utiliza a seguinte ordem:
 ```text
 conversor-planilha/
 ├── assets/
-│   ├── logo-notasync.png
 │   ├── icon-notasync.png
 │   ├── favicon.ico
 │   ├── favicon.png
@@ -100,12 +101,11 @@ Registra as mudanças importantes de cada versão publicada.
 
 ## Identidade visual
 
-A identidade oficial utiliza o nome **NotaSync**, com azul escuro como base e laranja como destaque.
+A identidade oficial utiliza o nome **NotaSync**, com azul escuro como base e laranja como destaque. O cabeçalho usa o ícone oficial acompanhado do nome renderizado em HTML/CSS para garantir nitidez e adaptação a diferentes tamanhos de tela.
 
 Os arquivos de marca ficam em `assets/`:
 
-- `logo-notasync.png`: logotipo exibido dentro da aplicação;
-- `icon-notasync.png`: ícone principal em alta resolução;
+- `icon-notasync.png`: ícone principal em alta resolução e símbolo exibido no cabeçalho;
 - `favicon.ico` e `favicon.png`: ícones da aba do navegador;
 - `apple-touch-icon.png`: ícone para atalhos em dispositivos móveis.
 

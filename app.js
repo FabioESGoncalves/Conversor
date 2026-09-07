@@ -21,7 +21,7 @@
     "Status/Resumo"
   ];
 
-  const SOURCE_COLUMNS = [
+  const REQUIRED_COLUMNS = [
     "Número de Ordem",
     "Estado",
     "Fim SLA",
@@ -31,8 +31,7 @@
     "NE ID",
     "Regra usuário criador",
     "Tipo da Falha",
-    "Título do Alarme",
-    "Faixa Priorização Dispatching"
+    "Título do Alarme"
   ];
 
   const $ = id => document.getElementById(id);
@@ -123,6 +122,27 @@
       .trim();
   }
 
+  function findColumnIndex(indexByName, aliases) {
+    for (const alias of aliases) {
+      const index = indexByName.get(normalizeText(alias));
+      if (index !== undefined) return index;
+    }
+    return undefined;
+  }
+
+  function parseSupportedDate(value) {
+    if (value instanceof Date && !Number.isNaN(value.getTime())) {
+      return new Date(value.getTime());
+    }
+    return parseBrazilDate(value);
+  }
+
+  function getInputTypeLabel(fileName = "") {
+    const name = String(fileName).toLowerCase();
+    if (name.endsWith(".xlsx") || name.endsWith(".xls")) return "XLSX";
+    return "CSV/CVS";
+  }
+
   function yieldToBrowser() {
     return new Promise(resolve => setTimeout(resolve, 0));
   }
@@ -176,8 +196,8 @@
 
   function getOutputFileName(originalName) {
     const name = String(originalName || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-    if (name.includes("merielem")) return "Notas na fila ES.xlsx";
-    if (name.includes("vinicius")) return "Notas na fila Bxd.xlsx";
+    if (name.includes("merielem") || name.includes("notas na fila es")) return "Notas na fila ES.xlsx";
+    if (name.includes("vinicius") || name.includes("notas na fila bxd")) return "Notas na fila Bxd.xlsx";
     return "Notas na fila.xlsx";
   }
 
@@ -244,11 +264,12 @@
     const buffer = chooseEncoding(await file.arrayBuffer());
     await yieldToBrowser();
 
-    progress(12, previousFile ? "Interpretando CSV/CVS e preparando cruzamento..." : "Interpretando CSV/CVS com SheetJS...");
+    const inputType = getInputTypeLabel(file.name);
+    progress(12, previousFile ? `Interpretando ${inputType} e preparando cruzamento...` : `Interpretando ${inputType}...`);
     const workbook = XLSX.read(buffer, {
       type: "array",
       raw: true,
-      cellDates: false,
+      cellDates: true,
       dense: true
     });
 
@@ -271,24 +292,25 @@
       if (name && !indexByName.has(name)) indexByName.set(name, i);
     });
 
-    const requiredSource = SOURCE_COLUMNS.map(name => ({
+    const requiredSource = REQUIRED_COLUMNS.map(name => ({
       name,
       index: indexByName.get(normalizeText(name))
     }));
 
-    const missing = requiredSource.filter(x => x.index === undefined && x.name !== "Faixa Priorização Dispatching");
+    const missing = requiredSource.filter(x => x.index === undefined);
     if (missing.length) {
       throw new Error("Colunas obrigatórias ausentes: " + missing.map(x => x.name).join(", "));
     }
 
-    const faixaIndex = indexByName.get(normalizeText("Faixa Priorização Dispatching"));
+    const faixaIndex = findColumnIndex(indexByName, ["Faixa Priorização Dispatching", "Faixa"]);
     if (faixaIndex === undefined) {
-      throw new Error('A coluna "Faixa Priorização Dispatching" não foi encontrada.');
+      throw new Error('A coluna "Faixa Priorização Dispatching" ou "Faixa" não foi encontrada.');
     }
 
     const estadoIndex = indexByName.get(normalizeText("Estado"));
     const fimSlaIndex = indexByName.get(normalizeText("Fim SLA"));
     const criacaoIndex = indexByName.get(normalizeText("Criação do NTT"));
+    const currentStatusIndex = indexByName.get(normalizeText("Status/Resumo"));
 
     $("totalRows").textContent = String(Math.max(0, matrix.length - 1));
 
@@ -299,6 +321,7 @@
     const priorityCounts = { P1: 0, P2: 0, P3: 0, P4: 0, P5: 0, SEM_FAIXA: 0 };
 
     log(`Cabeçalho encontrado com ${originalHeader.length} colunas.`);
+    if (currentStatusIndex !== undefined) log("Planilha atual já possui Status/Resumo; a coluna será preservada quando não houver planilha anterior.");
     log('Filtro: coluna Estado contém "Não iniciado" (sem diferenciar maiúsculas/minúsculas e acentos).');
 
     const dataRows = matrix.length - 1;
@@ -335,12 +358,14 @@
             values[11] = "N/A";
             newCount++;
           }
+        } else if (currentStatusIndex !== undefined) {
+          values[11] = String(row[currentStatusIndex] ?? "").trim();
         }
 
-        const fim = parseBrazilDate(values[2]);
+        const fim = parseSupportedDate(values[2]);
         if (fim) { values[2] = fim; dateCount++; }
 
-        const criacao = parseBrazilDate(values[4]);
+        const criacao = parseSupportedDate(values[4]);
         if (criacao) { values[4] = criacao; dateCount++; }
 
         output.push(values);
@@ -514,8 +539,9 @@
 
   function selectFile(file) {
     const name = file.name.toLowerCase();
-    if (!(name.endsWith(".csv") || name.endsWith(".cvs"))) {
-      alert("Selecione um arquivo .csv ou .cvs.");
+    const supported = name.endsWith(".csv") || name.endsWith(".cvs") || name.endsWith(".xlsx") || name.endsWith(".xls");
+    if (!supported) {
+      alert("Selecione um arquivo .csv, .cvs, .xlsx ou .xls.");
       return;
     }
     selectedFile = file;
@@ -525,7 +551,7 @@
     fileInfo.classList.add("show");
     convertBtn.disabled = false;
     downloadBtn.disabled = true;
-    progress(0, "Arquivo selecionado. Pronto para converter.");
+    progress(0, "Arquivo selecionado. Pronto para processar.");
     log(`Selecionado: ${file.name}.`);
     updateActionState("process");
   }
