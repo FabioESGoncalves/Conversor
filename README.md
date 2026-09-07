@@ -1,6 +1,6 @@
-# Conversor de Planilha
+# NotaSync
 
-Ferramenta web para conversão e tratamento de arquivos **CSV/CVS para XLSX**, desenvolvida para simplificar o fluxo operacional de análise de notas em fila.
+Ferramenta web para conversão, tratamento e cruzamento de arquivos **CSV/CVS para XLSX**, desenvolvida para simplificar o fluxo operacional de análise de notas em fila.
 
 O sistema filtra automaticamente os registros com **Estado = Não iniciado**, mantém uma estrutura padronizada de colunas, converte campos de data para datas reais do Excel e permite cruzar a planilha atual com uma planilha tratada anteriormente.
 
@@ -62,6 +62,12 @@ A planilha final utiliza a seguinte ordem:
 
 ```text
 conversor-planilha/
+├── assets/
+│   ├── logo-notasync.png
+│   ├── icon-notasync.png
+│   ├── favicon.ico
+│   ├── favicon.png
+│   └── apple-touch-icon.png
 ├── index.html
 ├── styles.css
 ├── app.js
@@ -92,6 +98,17 @@ Contém toda a lógica da aplicação:
 
 Registra as mudanças importantes de cada versão publicada.
 
+## Identidade visual
+
+A identidade oficial utiliza o nome **NotaSync**, com azul escuro como base e laranja como destaque.
+
+Os arquivos de marca ficam em `assets/`:
+
+- `logo-notasync.png`: logotipo exibido dentro da aplicação;
+- `icon-notasync.png`: ícone principal em alta resolução;
+- `favicon.ico` e `favicon.png`: ícones da aba do navegador;
+- `apple-touch-icon.png`: ícone para atalhos em dispositivos móveis.
+
 ## Tecnologias utilizadas
 
 - HTML5
@@ -119,7 +136,7 @@ Para desenvolvimento, também pode utilizar qualquer servidor HTTP local, por ex
 ## Publicação no GitHub Pages
 
 1. Crie um repositório no GitHub.
-2. Envie `index.html`, `styles.css`, `app.js` e `README.md` para a raiz do repositório.
+2. Envie `index.html`, `styles.css`, `app.js`, `README.md`, `CHANGELOG.md` e a pasta `assets` para a raiz do repositório.
 3. Acesse **Settings > Pages**.
 4. Em **Build and deployment**, selecione **Deploy from a branch**.
 5. Escolha a branch principal, normalmente `main`, e a pasta `/ (root)`.
@@ -145,4 +162,4 @@ Contato: **fabiogoncalves.contato@gmail.com**
 ## Direitos
 
 © 2026 Fábio Gonçalves. Todos os direitos reservados.  
-**Conversor de Planilha**
+**NotaSync**

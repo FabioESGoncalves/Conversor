@@ -55,19 +55,33 @@
       box-shadow:var(--shadow);
     }
 
-    .brand-wrap{display:flex; align-items:flex-start; gap:16px}
-    .brand-mark{
-      width:52px;
-      height:52px;
-      border-radius:14px;
+    .brand-wrap{
       display:grid;
-      place-items:center;
-      font-weight:900;
-      font-size:18px;
-      color:#fff;
-      background:linear-gradient(135deg, var(--primary), var(--primary-strong));
-      box-shadow:0 12px 24px rgba(47,121,203,.26);
-      flex:0 0 auto;
+      grid-template-columns:minmax(220px,280px) minmax(0,1fr);
+      align-items:center;
+      gap:20px;
+      min-width:0;
+      flex:1 1 auto;
+    }
+    .brand-logo{
+      display:block;
+      width:100%;
+      max-width:280px;
+      height:auto;
+      object-fit:contain;
+      filter:drop-shadow(0 10px 20px rgba(0,0,0,.18));
+    }
+    .brand-copy{min-width:0}
+    .sr-only{
+      position:absolute;
+      width:1px;
+      height:1px;
+      padding:0;
+      margin:-1px;
+      overflow:hidden;
+      clip:rect(0,0,0,0);
+      white-space:nowrap;
+      border:0;
     }
     .eyebrow{
       display:inline-block;
@@ -624,7 +638,8 @@
     @media (max-width:760px){
       .shell{width:min(100%, calc(100% - 20px)); margin:18px auto 24px}
       .topbar,.hero,.main,.card-body,.columns{padding:18px}
-      .brand-wrap{flex-direction:column;gap:12px}
+      .brand-wrap{grid-template-columns:1fr;gap:12px}
+      .brand-logo{max-width:300px}
       .section-header,.columns-head{flex-direction:column}
       .hero-grid,.stats-grid,.compare-grid{grid-template-columns:1fr}
       .priority-grid{grid-template-columns:repeat(2,minmax(0,1fr))}

@@ -3,7 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Conversor de Planilha | CSV/CVS para XLSX</title>
+  <title>NotaSync | Conversão e cruzamento de planilhas</title>
+  <meta name="theme-color" content="#071320">
+  <meta name="description" content="NotaSync — conversão e cruzamento de planilhas CSV/CVS para XLSX com reaproveitamento de Status/Resumo.">
+  <link rel="icon" href="assets/favicon.ico" sizes="any">
+  <link rel="icon" type="image/png" sizes="64x64" href="assets/favicon.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
   <link rel="stylesheet" href="styles.css">
@@ -12,11 +17,11 @@
   <div class="shell">
     <header class="topbar">
       <div class="brand-wrap">
-        <div class="brand-mark">CP</div>
-        <div>
+        <img class="brand-logo" src="assets/logo-notasync.png" alt="NotaSync">
+        <div class="brand-copy">
           <div class="eyebrow">Ferramenta interna</div>
-          <h1>Conversor de Planilha</h1>
-          <p class="subtitle">Solução para conversão de arquivos CSV/CVS em XLSX, com filtragem por <b>Estado = Não iniciado</b>, reaproveitamento automático da coluna <b>Status/Resumo</b> e cruzamento inteligente por <b>Número de Ordem</b>.</p>
+          <h1 class="sr-only">NotaSync</h1>
+          <p class="subtitle">Conversão e cruzamento de planilhas CSV/CVS para XLSX, com filtragem por <b>Estado = Não iniciado</b>, reaproveitamento automático da coluna <b>Status/Resumo</b> e comparação por <b>Número de Ordem</b>.</p>
         </div>
       </div>
       <aside class="author-card">
@@ -162,7 +167,7 @@
       <div class="chips" id="chips"></div>
     </section>
 
-    <div class="footer">© <span id="currentYear"></span> Todos os direitos reservados • <b>Conversor de Planilha</b></div>
+    <div class="footer">© <span id="currentYear"></span> Todos os direitos reservados • <b>NotaSync</b></div>
   </div>
 
 <script src="app.js"></script>
