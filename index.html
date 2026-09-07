@@ -46,7 +46,7 @@
         <div class="hero-card"><b>Entrada principal</b><span>Importação do CSV/CVS ou XLSX atual.</span></div>
         <div class="hero-card"><b>Cruzamento opcional</b><span>Leitura da planilha XLSX anterior para reaproveitar o Status/Resumo.</span></div>
         <div class="hero-card"><b>Controle operacional</b><span>Contagem automática de notas atuais, existentes e novas.</span></div>
-        <div class="hero-card"><b>Saída padronizada</b><span>Planilha XLSX final preservando as colunas existentes na origem, sem criar campos operacionais vazios.</span></div>
+        <div class="hero-card"><b>Saída padronizada</b><span>Planilha XLSX final contendo somente os campos operacionais reconhecidos que existirem na origem, sem carregar colunas extras.</span></div>
       </div>
     </section>
 
@@ -56,7 +56,7 @@
           <h2>Importação e processamento</h2>
           <p>Selecione o arquivo atual em CSV/CVS ou XLSX e, se necessário, informe a planilha tratada anterior. O sistema irá comparar automaticamente os dados e atualizar a coluna <b>Status/Resumo</b> na nova saída.</p>
         </div>
-        <div class="version-chip">SheetJS 0.18.5 • Versão 1.4</div>
+        <div class="version-chip">SheetJS 0.18.5 • Versão 1.4.1</div>
       </div>
 
       <div class="workflow">
@@ -164,7 +164,7 @@
       <div class="columns-head">
         <div>
           <h2>Colunas de saída</h2>
-          <p>A saída preserva as colunas existentes da planilha atual. <b>TSK</b>, <b>P</b> e <b>OBS</b> são reconhecidas internamente como chave, faixa e resumo. Se não existir <b>Status/Resumo</b> ou <b>OBS</b>, somente a coluna <b>Status/Resumo</b> será adicionada ao final.</p>
+          <p>A saída mantém somente os campos operacionais reconhecidos que existirem na planilha atual. Colunas extras da origem são ignoradas. <b>TSK</b>, <b>P</b> e <b>OBS</b> são reconhecidas internamente como chave, faixa e resumo. Se não existir <b>Status/Resumo</b> ou <b>OBS</b>, somente a coluna <b>Status/Resumo</b> será adicionada ao final.</p>
         </div>
       </div>
       <div class="chips" id="chips"></div>

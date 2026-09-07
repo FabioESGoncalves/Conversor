@@ -430,7 +430,7 @@
     log("Analisando estrutura da planilha atual...");
 
     if (analysis.alternative) {
-      log("Estrutura alternativa detectada. O NotaSync aplicará o mapa de compatibilidade sem alterar as colunas da origem.", "ok");
+      log("Estrutura alternativa detectada. O NotaSync aplicará o mapa de compatibilidade.", "ok");
     } else {
       log("Estrutura reconhecida no padrão NotaSync/compatível.", "ok");
     }
@@ -449,20 +449,28 @@
       throw new Error(`Estrutura incompatível. Colunas essenciais ausentes: ${requiredNames}. Cabeçalhos encontrados: ${found}`);
     }
 
-    log(`${originalHeader.length} colunas da planilha de origem serão preservadas na saída.`);
+    const recognizedCount = COLUMN_SCHEMA.filter(definition => analysis.columns[definition.key]).length;
+    const ignoredCount = analysis.extras.length;
+    log(`${recognizedCount} campos compatíveis reconhecidos na origem.`, "ok");
+
+    if (ignoredCount > 0) {
+      const preview = analysis.extras.slice(0, 8).map(item => `"${item.name}"`).join(", ");
+      const suffix = ignoredCount > 8 ? ` e mais ${ignoredCount - 8}` : "";
+      log(`ℹ ${ignoredCount} colunas extras serão ignoradas na saída: ${preview}${suffix}.`);
+    }
 
     if (analysis.columns.status) {
       const statusName = originalHeader[analysis.columns.status.index];
       log(`✓ "${statusName}" será utilizada como coluna de resumo/status.`, "ok");
     } else {
-      log('ℹ A origem não possui "Status/Resumo" ou "OBS" — somente essa coluna será adicionada ao final da saída.');
+      log('ℹ A origem não possui "Status/Resumo" ou "OBS" — somente "Status/Resumo" será adicionada ao final.');
     }
 
     if (!analysis.columns.priority) {
       log('ℹ Coluna de faixa/prioridade não encontrada — o cruzamento continuará funcionando normalmente.');
     }
 
-    log("Estrutura válida para processamento flexível.", "ok");
+    log("Estrutura válida para processamento operacional.", "ok");
   }
 
   function cellValue(row, analysis, key) {
@@ -472,22 +480,47 @@
   }
 
   function buildDynamicOutputLayout(originalHeader, analysis) {
-    const header = originalHeader.slice();
-    let statusIndex = analysis.columns.status ? analysis.columns.status.index : -1;
+    // Mantém somente os campos reconhecidos pelo NotaSync que realmente existem
+    // na planilha atual. Colunas extras da origem são ignoradas.
+    // A ordem original dos campos reconhecidos é preservada.
+    const selectedColumns = COLUMN_SCHEMA
+      .map(definition => {
+        const resolved = analysis.columns[definition.key];
+        if (!resolved) return null;
+        return {
+          key: definition.key,
+          sourceIndex: resolved.index,
+          headerName: originalHeader[resolved.index] || definition.output
+        };
+      })
+      .filter(Boolean)
+      .sort((a, b) => a.sourceIndex - b.sourceIndex);
 
+    const header = selectedColumns.map(item => item.headerName);
+    const outputIndexByKey = new Map();
+    selectedColumns.forEach((item, outputIndex) => {
+      item.outputIndex = outputIndex;
+      outputIndexByKey.set(item.key, outputIndex);
+    });
+
+    let statusIndex = outputIndexByKey.has("status") ? outputIndexByKey.get("status") : -1;
     if (statusIndex < 0) {
+      statusIndex = header.length;
       header.push("Status/Resumo");
-      statusIndex = header.length - 1;
+      outputIndexByKey.set("status", statusIndex);
     }
 
     return {
       header,
+      selectedColumns,
       statusIndex,
-      orderIndex: analysis.columns.order.index,
-      stateIndex: analysis.columns.state.index,
-      priorityIndex: analysis.columns.priority ? analysis.columns.priority.index : -1,
-      slaEndIndex: analysis.columns.slaEnd ? analysis.columns.slaEnd.index : -1,
-      nttCreatedIndex: analysis.columns.nttCreated ? analysis.columns.nttCreated.index : -1
+      orderSourceIndex: analysis.columns.order.index,
+      stateSourceIndex: analysis.columns.state.index,
+      orderIndex: outputIndexByKey.get("order"),
+      stateIndex: outputIndexByKey.get("state"),
+      priorityIndex: outputIndexByKey.has("priority") ? outputIndexByKey.get("priority") : -1,
+      slaEndIndex: outputIndexByKey.has("slaEnd") ? outputIndexByKey.get("slaEnd") : -1,
+      nttCreatedIndex: outputIndexByKey.has("nttCreated") ? outputIndexByKey.get("nttCreated") : -1
     };
   }
 
@@ -628,8 +661,8 @@
     let newCount = 0;
     const priorityCounts = { P1: 0, P2: 0, P3: 0, P4: 0, P5: 0, SEM_FAIXA: 0 };
 
-    const orderSource = originalHeader[layout.orderIndex];
-    const stateSource = originalHeader[layout.stateIndex];
+    const orderSource = originalHeader[layout.orderSourceIndex];
+    const stateSource = originalHeader[layout.stateSourceIndex];
     log(`Chave do cruzamento: "${orderSource}".`, "ok");
     log(`Filtro aplicado pela coluna: "${stateSource}".`);
     log('Filtro: Estado contém "Não iniciado" (sem diferenciar maiúsculas/minúsculas e acentos).');
@@ -640,11 +673,11 @@
 
       for (let r = start; r < end; r++) {
         const sourceRow = matrix[r] || [];
-        const estado = normalizeText(sourceRow[layout.stateIndex]);
+        const estado = normalizeText(sourceRow[layout.stateSourceIndex]);
         if (!estado.includes("nao iniciado")) continue;
 
-        // Preserva todas as colunas existentes na planilha atual.
-        const values = originalHeader.map((_, index) => sourceRow[index] ?? "");
+        // Copia somente as colunas operacionais reconhecidas.
+        const values = layout.selectedColumns.map(item => sourceRow[item.sourceIndex] ?? "");
         while (values.length < layout.header.length) values.push("");
 
         const orderKey = String(values[layout.orderIndex] ?? "").trim();
@@ -819,7 +852,7 @@
     progress(100, "Concluído.");
     log(`Aba criada: "${SHEET_NAME}".`, "ok");
     log(`Arquivo pronto: ${outputFileName}.`, "ok");
-    log(`Estrutura preservada: ${layout.header.length} colunas na saída.`, "ok");
+    log(`Saída operacional gerada com ${layout.header.length} colunas reconhecidas.`, "ok");
 
     downloadBtn.disabled = false;
     updateActionState("download");
