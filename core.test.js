@@ -28,3 +28,9 @@ test('alerta sobre queda brusca de volume', () => {
   assert.equal(core.needsReview(2, 5, 3), false);
   assert.equal(core.needsReview(4, 4, 0), true);
 });
+
+test('destaca somente a célula que contém indisponibilidade total, jamais a TSK por associação', () => {
+  const columns = ['TSK001', 'Não iniciado', 'Indisponibilidade Total de serviço', 'Em análise'];
+  assert.deepEqual([...core.outageCellIndexes(columns)], [2]);
+  assert.deepEqual([...core.outageCellIndexes(['TSK002', 'Não iniciado', 'Indisponibilidade parcial'])], []);
+});

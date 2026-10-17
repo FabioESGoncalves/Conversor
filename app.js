@@ -7,7 +7,7 @@
   const CHUNK_SIZE = 500;
   const HISTORY_SHEET = "Histórico TSKs";
   const HISTORY_HEADER = ["Data da comparação", "TSK", "Movimentação", "Situação", "Resumo anterior", "Arquivo anterior", "Arquivo atual"];
-  const { normalizeKey, meaningful, isTotalOutage, mergeSummary, compareActive, needsReview } = window.NotaSyncCore;
+  const { normalizeKey, meaningful, isTotalOutage, outageCellIndexes, mergeSummary, compareActive, needsReview } = window.NotaSyncCore;
 
   const INITIAL_OUTPUT_HINTS = [
     "Número de Ordem / TSK",
@@ -683,7 +683,7 @@
 
   async function processFile(file) {
     generatedWorkbook = null;
-    outputFileName = getOutputFileName(file.name).replace(/\.xlsx$/i, "-SmartSync-1.5.1.xlsx");
+    outputFileName = getOutputFileName(file.name).replace(/\.xlsx$/i, "-SmartSync-1.5.2.xlsx");
     downloadBtn.disabled = true;
 
     if (!window.XLSX || !window.ExcelJS) {
@@ -791,14 +791,10 @@
 
         // Destaca somente as células visíveis da saída que contenham a expressão
         // "Indisponibilidade Total". Não colore a TSK por fallback.
-        const redIndexes = new Set();
-        const foundFields = new Set();
-        values.forEach((cell, outputIndex) => {
-          if (isTotalOutage(cell)) {
-            redIndexes.add(outputIndex);
-            foundFields.add(layout.header[outputIndex]);
-          }
-        });
+        const redIndexes = outageCellIndexes(values);
+        const foundFields = new Set(
+          [...redIndexes].map(outputIndex => layout.header[outputIndex])
+        );
         if (redIndexes.size) {
           outageCells.set(output.length, redIndexes);
           outageMatches.push({ key: displayOrder || `(linha ${r + 1})`, fields: [...foundFields].join(", ") });

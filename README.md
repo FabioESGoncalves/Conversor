@@ -1,4 +1,4 @@
-# NotaSync 1.5.1 — SmartSync
+# NotaSync 1.5.2 — SmartSync
 
 Ferramenta web estática da **OrbyttaCore** para leitura de CSV/CVS/XLS/XLSX, filtragem por `Estado = Não iniciado`, cruzamento de TSKs e exportação XLSX. Todo o processamento das planilhas acontece **no navegador**; o app não contém backend, banco de dados ou envio dos arquivos a um servidor.
 
@@ -49,3 +49,10 @@ node --test tests/*.test.js
 ```
 
 © 2026 OrbyttaCore — NotaSync.
+
+### Publicação correta no GitHub Pages (1.5.2)
+
+1. Extraia o ZIP e copie **o conteúdo interno** da pasta `NotaSync-1.5.2-SmartSync-LogoFix/` para a **raiz** da branch publicada no GitHub Pages. Não crie uma pasta extra.
+2. Confirme que o `index.html` publicado mostra `v1.5.2` no canto superior direito da área OrbyttaCore. Sem isso, a versão acessada ainda é antiga.
+3. A marca está incorporada ao `index.html`; o arquivo `logo-orbyttacore-v152.jpg` é fornecido como recurso extra de inspeção, mas não é necessário para a marca aparecer.
+4. Se o badge não mudar, confira **Settings → Pages** para identificar branch e pasta da publicação e abra a URL em aba anônima.

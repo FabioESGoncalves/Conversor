@@ -15,6 +15,9 @@
     return text !== '' && !['N/A', 'NA', '-'].includes(text.toUpperCase());
   };
   const isTotalOutage = value => normalizeText(value).includes('indisponibilidade total');
+  const outageCellIndexes = cells => new Set(
+    cells.flatMap((value, index) => isTotalOutage(value) ? [index] : [])
+  );
   function mergeSummary(current, previous, hasPrevious) {
     if (hasPrevious && meaningful(previous)) return previous;
     if (meaningful(current)) return current;
@@ -31,5 +34,5 @@
   function needsReview(goneCount, previousCount, currentCount) {
     return previousCount > 0 && (currentCount === 0 || goneCount >= 3 && goneCount / previousCount >= 0.4);
   }
-  return { normalizeText, normalizeKey, meaningful, isTotalOutage, mergeSummary, compareActive, needsReview };
+  return { normalizeText, normalizeKey, meaningful, isTotalOutage, outageCellIndexes, mergeSummary, compareActive, needsReview };
 });

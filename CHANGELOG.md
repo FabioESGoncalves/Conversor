@@ -1,3 +1,11 @@
+## 1.5.2 — LogoFix
+
+- Logotipo oficial enviado pelo usuário incorporado ao HTML em formato JPEG com fundo branco, sem depender de caminhos `/assets/`.
+- Fallback de marca em texto caso o navegador não aceite a imagem.
+- Marcador de build `v1.5.2` visível no cabeçalho para diferenciar uma página antiga em cache.
+- Cache-busting de `styles.css`, `app.js` e `smartsync-core.js`.
+- Mantida a regra 1.5.1: vermelho somente nas células com “Indisponibilidade Total”, nunca na TSK por fallback.
+
 ## 1.5.1 — Hotfix de validação visual
 
 - Corrigido o carregamento da marca OrbyttaCore com incorporação direta da logo na interface.
