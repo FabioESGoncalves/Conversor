@@ -1,165 +1,51 @@
-# NotaSync
+# NotaSync 1.5.0 — SmartSync
 
-Ferramenta web para conversão, tratamento e cruzamento de arquivos **CSV/CVS ou XLSX para XLSX padronizado**, desenvolvida para simplificar o fluxo operacional de análise de notas em fila.
+Ferramenta web estática da **OrbyttaCore** para leitura de CSV/CVS/XLS/XLSX, filtragem por `Estado = Não iniciado`, cruzamento de TSKs e exportação XLSX. Todo o processamento das planilhas acontece **no navegador**; o app não contém backend, banco de dados ou envio dos arquivos a um servidor.
 
-O sistema filtra automaticamente os registros com **Estado = Não iniciado**, mantém uma estrutura padronizada de colunas, converte campos de data para datas reais do Excel e permite cruzar a planilha atual com uma planilha tratada anteriormente.
+## Como usar
 
-## Funcionalidades
+1. Abra a página GitHub Pages (ou `index.html` em navegador com acesso à internet).
+2. Informe a **planilha atual** com o estado dos chamados.
+3. Selecione a **planilha anterior**, idealmente o XLSX exportado pelo NotaSync na última consulta.
+4. Clique em **Processar planilha**. Revise contadores, registros e eventuais avisos de diferença de escopo.
+5. Clique em **Baixar arquivo XLSX** e salve essa versão para o próximo cruzamento.
 
-- Importação de arquivos `.csv`, `.cvs`, `.xlsx` e `.xls`.
-- Filtro automático por **Estado = Não iniciado**.
-- Conversão para `.xlsx`.
-- Conversão de **Fim SLA** e **Criação do NTT** para datas reais do Excel.
-- Inclusão automática da coluna **Status/Resumo** após a coluna **Faixa**.
-- Cruzamento opcional com uma planilha XLSX anterior.
-- Comparação baseada em **Número de Ordem**.
-- Reaproveitamento do conteúdo já preenchido em **Status/Resumo**.
-- Identificação de notas novas com `N/A` em **Status/Resumo**.
-- Contadores de:
-  - notas atuais;
-  - notas já existentes;
-  - notas novas;
-  - distribuição por faixa P1, P2, P3, P4, P5 e Sem faixa.
-- Geração de XLSX com cabeçalho formatado, autofiltro, larguras de coluna e bordas.
-- Definição automática do nome do arquivo de saída de acordo com o nome do arquivo de origem.
+## Regras do SmartSync
 
-## Fluxo de uso
+- A aba **Filtrado** contém **somente os registros atuais** em que a coluna `Estado` contém `Não iniciado`. Registros ausentes não são devolvidos à planilha ativa.
+- A aba **Histórico TSKs** registra os chamados que apareciam anteriormente e não aparecem entre os ativos agora, com a classificação **Possível normalização — verificar**. A diferença *não comprova fechamento*. O histórico é carregado do XLSX anterior e acumulado nas exportações seguintes.
+- Chamados presentes agora e com registro prévio de ausência recebem no histórico o evento **Reapareceu na consulta atual**.
+- A planilha atual pode ter `Número de Ordem` ou `TSK` como chave; a comparação ignora letras maiúsculas/minúsculas, mas mantém zeros à esquerda. O preenchimento anterior de `Status/Resumo` / `OBS` é reaproveitado apenas quando válido. Resumos vazios ou conflitantes não apagam anotações úteis presentes na planilha atual.
+- Se o texto **Indisponibilidade Total** for encontrado em qualquer célula de uma linha elegível, a ocorrência é contada e destacada no Excel exportado. Se o campo tiver sido excluído das colunas de saída, a célula TSK fica destacada como sinalização.
+- Diferenças grandes entre planilhas mostram um aviso. **Confira região, filtro, abrangência e período** antes de classificar como normalização.
+- Não há persistência automática no navegador. O histórico só evolui se a planilha anterior contiver a aba `Histórico TSKs`.
 
-1. Abra o sistema no navegador.
-2. Selecione ou arraste o **CSV/CVS ou XLSX atual**.
-3. Opcionalmente, selecione a **XLSX tratada anterior**.
-4. Clique em **Processar planilha**.
-5. Confira os indicadores apresentados na tela.
-6. Clique em **Baixar arquivo XLSX**.
+## Arquivos
 
-### Como funciona o cruzamento
+- `index.html` — interface e bibliotecas de planilhas.
+- `styles.css` — identidade visual e interface.
+- `app.js` — fluxo de arquivos, processamento, formatação e exportação.
+- `smartsync-core.js` — regras isoladas de comparação para testes.
+- `assets/` — iconografia NotaSync e logo OrbyttaCore com fundo branco.
+- `tests/` — testes das regras da sincronização.
 
-A comparação utiliza a coluna **Número de Ordem** como chave.
+## Dependências
 
-- Se a ordem existir na planilha anterior, o sistema reaproveita o valor de **Status/Resumo**.
-- Se a ordem não existir na planilha anterior, o sistema considera a nota como nova e preenche **Status/Resumo** com `N/A`.
+- [SheetJS CE 0.20.3](https://docs.sheetjs.com/docs/getting-started/installation/standalone/) do CDN oficial, para leitura de XLS, XLSX e CSV.
+- [ExcelJS 4.4.0](https://github.com/exceljs/exceljs) via jsDelivr, para XLSX com estilos, filtros, células de data e duas abas.
 
-Isso elimina a necessidade de realizar manualmente um `PROCV` ou `PROCX` para identificar as novas notas.
+Ambas as dependências são carregadas por scripts externos quando o site é aberto. O app continua sem enviar as planilhas, mas o carregamento das bibliotecas exige conexão e confiança nos fornecedores. Para uma implantação offline, hospede cópias confiáveis das bibliotecas e ajuste os caminhos do `index.html`.
 
-A planilha atual também pode ser uma XLSX já tratada ou gerada anteriormente pelo NotaSync. Nesse caso, a aplicação reconhece tanto a coluna **Faixa Priorização Dispatching** quanto a coluna **Faixa** e preserva **Status/Resumo** quando não houver uma planilha anterior selecionada.
+## Publicação
 
-## Colunas de saída
+Faça backup da publicação atual. Envie os arquivos da raiz e a pasta `assets/` para a **branch publicada no GitHub Pages**, preservando nomes e estrutura. Aguarde o deployment e recarregue com Ctrl+F5 para descartar caches antigos. Faça um teste usando cópias de planilhas reais antes de adotar a versão para operação.
 
-A planilha final utiliza a seguinte ordem:
+## Testes
 
-1. Número de Ordem
-2. Estado
-3. Fim SLA
-4. CM
-5. Criação do NTT
-6. END_ID
-7. NE ID
-8. Regra usuário criador
-9. Tipo da Falha
-10. Título do Alarme
-11. Faixa
-12. Status/Resumo
+No terminal, com Node.js 18+:
 
-## Estrutura do projeto
-
-```text
-conversor-planilha/
-├── assets/
-│   ├── icon-notasync.png
-│   ├── favicon.ico
-│   ├── favicon.png
-│   └── apple-touch-icon.png
-├── index.html
-├── styles.css
-├── app.js
-├── README.md
-└── CHANGELOG.md
+```bash
+node --test tests/*.test.js
 ```
 
-### `index.html`
-
-Contém a estrutura da interface e importa as bibliotecas necessárias.
-
-### `styles.css`
-
-Responsável pelo layout, identidade visual, responsividade, estados dos botões e animações da interface.
-
-### `app.js`
-
-Contém toda a lógica da aplicação:
-
-- leitura dos arquivos;
-- filtros;
-- cruzamento das planilhas;
-- contadores;
-- tratamento das datas;
-- geração e download do XLSX.
-
-### `CHANGELOG.md`
-
-Registra as mudanças importantes de cada versão publicada.
-
-## Identidade visual
-
-A identidade oficial utiliza o nome **NotaSync**, com azul escuro como base e laranja como destaque. O cabeçalho usa o ícone oficial acompanhado do nome renderizado em HTML/CSS para garantir nitidez e adaptação a diferentes tamanhos de tela.
-
-Os arquivos de marca ficam em `assets/`:
-
-- `icon-notasync.png`: ícone principal em alta resolução e símbolo exibido no cabeçalho;
-- `favicon.ico` e `favicon.png`: ícones da aba do navegador;
-- `apple-touch-icon.png`: ícone para atalhos em dispositivos móveis.
-
-## Tecnologias utilizadas
-
-- HTML5
-- CSS3
-- JavaScript
-- [SheetJS](https://sheetjs.com/)
-- [xlsx-js-style](https://github.com/gitbrent/xlsx-js-style)
-
-As bibliotecas JavaScript são carregadas por CDN no `index.html`.
-
-## Privacidade dos arquivos
-
-O processamento dos arquivos é realizado no **navegador do usuário**. O código desta aplicação não possui rotina para enviar os arquivos selecionados a um servidor.
-
-> Observação: as bibliotecas SheetJS e xlsx-js-style são carregadas externamente por CDN. Portanto, é necessária conexão com a internet para carregá-las quando ainda não estiverem disponíveis no cache do navegador.
-
-## Execução local
-
-Por ser uma aplicação web estática, não é necessário instalar Node.js, banco de dados ou servidor de aplicação.
-
-Você pode abrir o `index.html` diretamente no navegador.
-
-Para desenvolvimento, também pode utilizar qualquer servidor HTTP local, por exemplo a extensão **Live Server** do Visual Studio Code.
-
-## Publicação no GitHub Pages
-
-1. Crie um repositório no GitHub.
-2. Envie `index.html`, `styles.css`, `app.js`, `README.md`, `CHANGELOG.md` e a pasta `assets` para a raiz do repositório.
-3. Acesse **Settings > Pages**.
-4. Em **Build and deployment**, selecione **Deploy from a branch**.
-5. Escolha a branch principal, normalmente `main`, e a pasta `/ (root)`.
-6. Salve as configurações.
-
-Após a publicação, o GitHub disponibilizará o endereço da aplicação.
-
-## Compatibilidade
-
-Recomendado utilizar versões atuais de:
-
-- Google Chrome
-- Microsoft Edge
-- Mozilla Firefox
-
-O navegador precisa oferecer suporte às APIs modernas de arquivos utilizadas pelo JavaScript.
-
-## Responsável
-
-**Fábio Gonçalves**  
-Contato: **fabiogoncalves.contato@gmail.com**
-
-## Direitos
-
-© 2026 Fábio Gonçalves. Todos os direitos reservados.  
-**NotaSync**
+© 2026 OrbyttaCore — NotaSync.

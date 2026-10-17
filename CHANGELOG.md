@@ -1,31 +1,31 @@
-# Changelog
+# Histórico de versões — NotaSync
 
-Todas as alterações relevantes do NotaSync serão registradas neste arquivo.
+## 1.5.0 — SmartSync (2026-10-17)
 
-## 1.1 - 2026-09-06
+- Detecção de **Indisponibilidade Total**, ignorando caixa e acentuação, em quaisquer colunas da origem. Contador na tela, relação das ocorrências e destaque vermelho no arquivo Excel (na célula correspondente ou na TSK, se a coluna da origem não é exportada).
+- Comparação das TSKs ativas entre a planilha anterior (`Filtrado`) e a atual, preservando somente a lista atual na aba `Filtrado`.
+- TSKs anteriores não encontradas na atual são registradas na aba `Histórico TSKs` com a indicação **Possível normalização — verificar**; não há inferência de encerramento confirmado.
+- O histórico de movimentações é reaproveitado no próximo cruzamento desde que se use a última planilha exportada como arquivo anterior.
+- Registro de reaparecimento de TSK previamente marcada como ausente.
+- Aviso para variações grandes, TSKs duplicadas e divergências de resumo em registros anteriores.
+- Proteção contra sobrescrever resumos úteis com valores vazios e contra tratar chaves com zeros à esquerda como números.
+- Migração do leitor SheetJS 0.18.5 para o **SheetJS 0.20.3 oficial**; remoção de `xlsx-js-style` antigo, e geração XLSX formatada usando **ExcelJS 4.4.0**.
+- Logo OrbyttaCore com base branca, substituindo a identificação pessoal da interface e dos metadados gerados.
+- Testes de lógica de comparação em `tests/`.
 
-- Campo principal agora aceita CSV, CVS, XLSX e XLS.
-- Planilhas XLSX já tratadas ou geradas pelo NotaSync podem ser reutilizadas como planilha atual.
-- Compatibilidade com as colunas `Faixa Priorização Dispatching` e `Faixa`.
-- Preservação de `Status/Resumo` ao reprocessar uma XLSX sem planilha anterior.
-- Preservação do formato de data ao reutilizar XLSX geradas pelo sistema.
-- Correção do logotipo cortado: cabeçalho passa a usar o ícone oficial e wordmark responsivo em HTML/CSS.
-- Nomes de saída ES/Bxd são preservados ao reutilizar arquivos gerados anteriormente.
+### Atenção
 
-## 1.0 - 2026-09-06
+- O NotaSync continua **sem backend**; não mantém histórico automático entre sessões. Para manter a trilha, use a última planilha exportada como *planilha anterior*.
+- A expressão “não localizada” indica diferença na consulta, não encerramento confirmado. As planilhas devem ter o **mesmo escopo, região e filtros**.
+- Os scripts de planilhas são carregados de CDNs com versões fixas. É preciso conexão para carregar as bibliotecas. Recomenda-se hospedar cópias locais oficiais auditadas posteriormente.
+- O arquivo de saída usa XLSX. A leitura de entradas `.xls`, `.csv`, `.cvs`, `.xlsx` foi mantida.
 
-- Nome oficial definido como **NotaSync**.
-- Inclusão do logotipo oficial na interface.
-- Inclusão de favicon para a aba do navegador.
-- Inclusão de ícone para atalhos em dispositivos móveis.
-- Interface dark corporativa em azul com destaques em laranja.
-- Projeto separado em HTML, CSS e JavaScript.
-- Área dedicada para CSV/CVS atual e XLSX anterior.
-- Cruzamento por Número de Ordem.
-- Inclusão e reaproveitamento da coluna Status/Resumo.
-- Identificação e contagem de notas novas.
-- Contadores de distribuição por faixa.
-- Estados visuais para os botões Processar planilha e Baixar arquivo XLSX.
-- Assinatura e contato do responsável na interface.
-- Rodapé com ano atual.
-- Formatação da planilha XLSX com bordas, autofiltro e cabeçalho.
+## 1.1 — 2026-09-06
+
+- Importação de CSV, CVS, XLSX e XLS.
+- Compatibilidade com planilhas já tratadas e colunas alternativas.
+- Reaproveitamento do resumo, datas formatadas e UI responsiva.
+
+## 1.0 — 2026-09-06
+
+- Lançamento inicial do NotaSync.

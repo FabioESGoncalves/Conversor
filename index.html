@@ -9,8 +9,9 @@
   <link rel="icon" href="assets/favicon.ico" sizes="any">
   <link rel="icon" type="image/png" sizes="64x64" href="assets/favicon.png">
   <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+  <!-- SheetJS atualizado: leitura de CSV, XLS e XLSX. ExcelJS: escrita XLSX com estilos. -->
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -27,11 +28,10 @@
           <p class="subtitle">Conversão e cruzamento de planilhas CSV/CVS ou XLSX, com filtragem por <b>Estado = Não iniciado</b>, reaproveitamento automático da coluna <b>Status/Resumo</b> e comparação por <b>Número de Ordem ou TSK</b> e reconhecimento de estruturas alternativas.</p>
         </div>
       </div>
-      <aside class="author-card">
-        <p class="author-title">Responsável</p>
-        <p class="author-name">Fábio Gonçalves</p>
-        <p class="author-role">Gestão e organização do fluxo de tratamento das planilhas operacionais.</p>
-        <a class="author-email" href="mailto:fabiogoncalves.contato@gmail.com">fabiogoncalves.contato@gmail.com</a>
+      <aside class="author-card" aria-label="Desenvolvido por OrbyttaCore">
+        <p class="author-title">Desenvolvido por</p>
+        <div class="orbytta-logo-card"><img src="assets/logo-orbyttacore.png" alt="OrbyttaCore"></div>
+        <p class="author-role">Tecnologia e soluções para operações inteligentes.</p>
       </aside>
     </header>
 
@@ -39,14 +39,14 @@
       <div class="section-header">
         <div>
           <h2>Visão geral do processo</h2>
-          <p>A ferramenta foi estruturada para uso operacional diário, com interface simplificada, saída padronizada e controle visual dos principais indicadores do processamento.</p>
+          <p>Importe, compare e acompanhe movimentações de TSK. Chamados ausentes vão para o histórico, enquanto indisponibilidades totais recebem destaque automático.</p>
         </div>
       </div>
       <div class="hero-grid">
         <div class="hero-card"><b>Entrada principal</b><span>Importação do CSV/CVS ou XLSX atual.</span></div>
-        <div class="hero-card"><b>Cruzamento opcional</b><span>Leitura da planilha XLSX anterior para reaproveitar o Status/Resumo.</span></div>
-        <div class="hero-card"><b>Controle operacional</b><span>Contagem automática de notas atuais, existentes e novas.</span></div>
-        <div class="hero-card"><b>Saída padronizada</b><span>Planilha XLSX final contendo somente os campos operacionais reconhecidos que existirem na origem, sem carregar colunas extras.</span></div>
+        <div class="hero-card"><b>Cruzamento opcional</b><span>Reaproveitamento seguro de Status/Resumo e comparação de TSK ativas.</span></div>
+        <div class="hero-card"><b>Controle operacional</b><span>Novas, existentes, ausentes (verificar) e Indisponibilidade Total.</span></div>
+        <div class="hero-card"><b>Saída padronizada</b><span>Aba operacional limpa e histórico de movimentações em separado.</span></div>
       </div>
     </section>
 
@@ -54,9 +54,9 @@
       <div class="section-header">
         <div>
           <h2>Importação e processamento</h2>
-          <p>Selecione o arquivo atual em CSV/CVS ou XLSX e, se necessário, informe a planilha tratada anterior. O sistema irá comparar automaticamente os dados e atualizar a coluna <b>Status/Resumo</b> na nova saída.</p>
+          <p>Selecione o arquivo atual em CSV/CVS ou XLSX e, se necessário, informe a planilha tratada anterior. O sistema compara a lista ativa, preserva resumos preenchidos e registra TSKs não localizadas em uma aba de histórico.</p>
         </div>
-        <div class="version-chip">SheetJS 0.18.5 • Versão 1.4.1</div>
+        <div class="version-chip">SmartSync • Versão 1.5.0</div>
       </div>
 
       <div class="workflow">
@@ -143,6 +143,13 @@
           <div class="metric new"><b id="newCount">0</b><small>Notas novas</small></div>
         </div>
 
+        <div class="subsection-title">SmartSync • Movimentações</div>
+        <div class="smartsync-grid">
+          <div class="metric missing"><b id="missingCount">0</b><small>Não localizadas</small></div>
+          <div class="metric outage"><b id="outageCount">0</b><small>Indisponibilidade Total</small></div>
+          <div class="metric"><b id="reappearedCount">0</b><small>Reapareceram</small></div>
+        </div>
+        <div id="scopeWarning" class="scope-warning" role="status" hidden></div>
         <div class="subsection-title">Distribuição por Faixa</div>
         <div class="priority-grid" id="priorityGrid">
           <div class="priority-card"><b id="countP1">0</b><span>P1</span></div>
@@ -160,6 +167,16 @@
       </section>
     </div>
 
+    <section class="panel activity-panel" id="activityPanel" hidden>
+      <div class="section-header">
+        <div><h2>Movimentações identificadas</h2><p>TSKs ausentes não são reinseridas na lista ativa. O histórico é salvo em uma aba separada no XLSX.</p></div>
+      </div>
+      <div class="activity-grid">
+        <div><h3>Não localizadas na planilha atual</h3><div id="missingList" class="activity-list"></div></div>
+        <div><h3>Indisponibilidade Total</h3><div id="outageList" class="activity-list"></div></div>
+      </div>
+    </section>
+
     <section class="panel columns">
       <div class="columns-head">
         <div>
@@ -170,9 +187,10 @@
       <div class="chips" id="chips"></div>
     </section>
 
-    <div class="footer">© <span id="currentYear"></span> Todos os direitos reservados • <b>NotaSync</b></div>
+    <div class="footer">© <span id="currentYear"></span> <b>NotaSync</b> • Desenvolvido por OrbyttaCore • Processamento local no navegador</div>
   </div>
 
+<script src="smartsync-core.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

@@ -5,6 +5,9 @@
   const SHEET_NAME = "Filtrado";
   const DATE_FORMAT = "dd/mm/yyyy hh:mm:ss";
   const CHUNK_SIZE = 500;
+  const HISTORY_SHEET = "Histórico TSKs";
+  const HISTORY_HEADER = ["Data da comparação", "TSK", "Movimentação", "Situação", "Resumo anterior", "Arquivo anterior", "Arquivo atual"];
+  const { normalizeKey, meaningful, isTotalOutage, mergeSummary, compareActive, needsReview } = window.NotaSyncCore;
 
   const INITIAL_OUTPUT_HINTS = [
     "Número de Ordem / TSK",
@@ -201,15 +204,7 @@
     progressText.textContent = text;
   }
 
-  function normalizeText(value) {
-    return String(value ?? "")
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .toLowerCase()
-      .replace(/[_-]+/g, " ")
-      .replace(/\s+/g, " ")
-      .trim();
-  }
+  const normalizeText = window.NotaSyncCore.normalizeText;
 
   function normalizeHeaderForLookup(value) {
     return String(value ?? "")
@@ -543,53 +538,128 @@
     return widths;
   }
 
-  async function loadPreviousStatusMap(file) {
-    const statusMap = new Map();
-    if (!file) return statusMap;
+  async function loadPreviousSnapshot(file) {
+    const result = { statuses: new Map(), history: [], duplicates: 0, conflictKeys: new Set(), skippedStates: 0 };
+    if (!file) return result;
 
     log(`Lendo planilha anterior: ${file.name} (${formatBytes(file.size)}).`);
-    const buffer = await file.arrayBuffer();
-    const wb = XLSX.read(buffer, { type: "array", raw: true, cellDates: true, dense: true });
+    const wb = XLSX.read(await file.arrayBuffer(), { type: "array", raw: true, cellDates: true, dense: true });
     if (!wb.SheetNames.length) throw new Error("A planilha anterior não possui abas reconhecíveis.");
-
-    const preferredName = wb.SheetNames.includes(SHEET_NAME) ? SHEET_NAME : wb.SheetNames[0];
-    const ws = wb.Sheets[preferredName];
-    const matrix = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: "" });
+    const sheet = wb.Sheets[wb.SheetNames.includes(SHEET_NAME) ? SHEET_NAME : wb.SheetNames[0]];
+    const matrix = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true, defval: "" });
     if (!matrix.length) throw new Error("A planilha anterior está vazia.");
-
-    const originalHeader = matrix[0].map(v => String(v ?? ""));
-    const indexByName = buildHeaderIndex(originalHeader);
-    const orderDefinition = COLUMN_SCHEMA.find(item => item.key === "order");
-    const statusDefinition = COLUMN_SCHEMA.find(item => item.key === "status");
-    const order = resolveColumn(indexByName, orderDefinition);
-    const status = resolveColumn(indexByName, statusDefinition);
-
-    if (!order) {
-      throw new Error('A planilha anterior precisa possuir "Número de Ordem" ou "TSK".');
-    }
-
-    if (order.matchType === "alias") {
-      log(`✓ Planilha anterior: "${originalHeader[order.index]}" reconhecida como "Número de Ordem".`, "ok");
-    }
-
-    if (status && status.matchType === "alias") {
-      log(`✓ Planilha anterior: "${originalHeader[status.index]}" reconhecida como "Status/Resumo".`, "ok");
-    }
-
-    if (!status) {
-      log('ℹ Planilha anterior sem "Status/Resumo" ou "OBS". O cruzamento identificará notas existentes, mas o resumo anterior ficará vazio.');
-    }
+    const headers = matrix[0].map(v => String(v ?? ""));
+    const index = buildHeaderIndex(headers);
+    const order = resolveColumn(index, COLUMN_SCHEMA.find(item => item.key === "order"));
+    const status = resolveColumn(index, COLUMN_SCHEMA.find(item => item.key === "status"));
+    const state = resolveColumn(index, COLUMN_SCHEMA.find(item => item.key === "state"));
+    if (!order) throw new Error('A planilha anterior precisa possuir "Número de Ordem" ou "TSK".');
+    if (!state) log('⚠ Planilha anterior sem coluna "Estado": verifique se possui a mesma abrangência da planilha atual.', "err");
+    if (!status) log('Planilha anterior sem Status/Resumo; o cruzamento continuará sem reaproveitar resumos.');
 
     for (let r = 1; r < matrix.length; r++) {
       const row = matrix[r] || [];
-      const orderKey = String(row[order.index] ?? "").trim();
-      if (!orderKey || statusMap.has(orderKey)) continue;
-      const statusValue = status ? String(row[status.index] ?? "").trim() : "";
-      statusMap.set(orderKey, statusValue);
+      if (state && !normalizeText(row[state.index]).includes("nao iniciado")) {
+        result.skippedStates++;
+        continue;
+      }
+      const key = normalizeKey(row[order.index]);
+      if (!key) continue;
+      const summary = status ? String(row[status.index] ?? "").trim() : "";
+      if (result.statuses.has(key)) {
+        result.duplicates++;
+        const existing = result.statuses.get(key);
+        if (meaningful(existing.summary) && meaningful(summary) && existing.summary !== summary) {
+          result.conflictKeys.add(key);
+        } else if (!meaningful(existing.summary) && meaningful(summary)) {
+          existing.summary = summary;
+        }
+        continue;
+      }
+      result.statuses.set(key, { summary, displayKey: String(row[order.index] ?? "").trim() });
     }
+    if (result.duplicates) log(`⚠ ${result.duplicates} linhas de TSK duplicadas na planilha anterior (${result.conflictKeys.size} com resumo conflitante). Resumos conflitantes não serão importados.`, "err");
+    if (result.skippedStates) log(`${result.skippedStates} linhas anteriores fora do Estado "Não iniciado" foram ignoradas na comparação.`);
 
-    log(`${statusMap.size} números de ordem carregados da planilha anterior.`, "ok");
-    return statusMap;
+    if (wb.Sheets[HISTORY_SHEET]) {
+      const oldHistory = XLSX.utils.sheet_to_json(wb.Sheets[HISTORY_SHEET], { header: 1, raw: true, defval: "" });
+      if (oldHistory.length && normalizeHeaderForLookup(oldHistory[0][1]) === "tsk") {
+        result.history = oldHistory.slice(1).filter(row => normalizeKey(row[1])).map(row => HISTORY_HEADER.map((_, c) => row[c] ?? ""));
+        log(`${result.history.length} movimentações históricas recuperadas.`, "ok");
+      }
+    }
+    log(`${result.statuses.size} TSKs ativas na planilha anterior.`, "ok");
+    return result;
+  }
+
+  function resetActivity() {
+    $("activityPanel").hidden = true;
+    $("scopeWarning").hidden = true;
+    $("scopeWarning").textContent = "";
+    $("missingList").replaceChildren();
+    $("outageList").replaceChildren();
+  }
+
+  function renderActivityList(id, items, makeItem) {
+    const container = $(id);
+    container.replaceChildren();
+    if (!items.length) {
+      const blank = document.createElement("div");
+      blank.className = "activity-empty";
+      blank.textContent = "Nenhum registro nesta categoria.";
+      container.appendChild(blank);
+      return;
+    }
+    items.slice(0, 15).forEach(item => {
+      const [title, detail] = makeItem(item);
+      const el = document.createElement("div");
+      el.className = "activity-item" + (id === "outageList" ? " outage" : "");
+      const heading = document.createElement("strong");
+      heading.textContent = title;
+      const desc = document.createElement("span");
+      desc.textContent = detail;
+      el.append(heading, desc);
+      container.appendChild(el);
+    });
+    if (items.length > 15) {
+      const rest = document.createElement("div");
+      rest.className = "activity-empty";
+      rest.textContent = `Mais ${items.length - 15} ocorrência(s) na planilha exportada.`;
+      container.appendChild(rest);
+    }
+  }
+
+  function excelCellValue(value) {
+    if (value === null || value === undefined) return "";
+    return value;
+  }
+
+  function addFormattedSheet(wb, name, rows, options = {}) {
+    const ws = wb.addWorksheet(name, { views: [{ state: "frozen", ySplit: 1 }] });
+    rows.forEach((sourceRow, rowIndex) => {
+      const row = ws.addRow(sourceRow.map(excelCellValue));
+      row.eachCell({ includeEmpty: true }, (cell, col) => {
+        const isHeader = rowIndex === 0;
+        cell.border = {
+          top: { style: "thin", color: { argb: "FFB7B7B7" } },
+          bottom: { style: "thin", color: { argb: "FFB7B7B7" } },
+          left: { style: "thin", color: { argb: "FFB7B7B7" } },
+          right: { style: "thin", color: { argb: "FFB7B7B7" } }
+        };
+        cell.font = { name: "Calibri", size: 11, bold: isHeader, color: { argb: isHeader ? "FF000000" : "FF243449" } };
+        cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: isHeader ? "FFFFF200" : "FFFFFFFF" } };
+        cell.alignment = { vertical: "middle", horizontal: isHeader ? "center" : "left", wrapText: isHeader };
+        if (options.dateIndexes?.includes(col - 1) && sourceRow[col - 1] instanceof Date) cell.numFmt = DATE_FORMAT;
+        if (!isHeader && options.outageCells?.get(rowIndex)?.has(col - 1)) {
+          cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFFE4E6" } };
+          cell.font = { name: "Calibri", size: 11, bold: true, color: { argb: "FF9F1239" } };
+        }
+      });
+      if (rowIndex === 0) row.height = 30;
+    });
+    calculateColumnWidths(rows).forEach((wch, c) => { ws.getColumn(c + 1).width = wch; });
+    if (rows.length > 1) ws.autoFilter = { from: { row: 1, column: 1 }, to: { row: rows.length, column: rows[0].length } };
+    return ws;
   }
 
   function resetCounters() {
@@ -599,6 +669,10 @@
     $("currentCount").textContent = "0";
     $("existingCount").textContent = "0";
     $("newCount").textContent = "0";
+    $("missingCount").textContent = "0";
+    $("outageCount").textContent = "0";
+    $("reappearedCount").textContent = "0";
+    resetActivity();
     $("countP1").textContent = "0";
     $("countP2").textContent = "0";
     $("countP3").textContent = "0";
@@ -612,14 +686,18 @@
     outputFileName = getOutputFileName(file.name);
     downloadBtn.disabled = true;
 
-    if (!window.XLSX) {
-      throw new Error("SheetJS não foi carregado. Para uso totalmente offline, a biblioteca precisa estar embutida no próprio HTML.");
+    if (!window.XLSX || !window.ExcelJS) {
+      throw new Error("Bibliotecas não carregadas (SheetJS / ExcelJS). Conecte-se à internet e recarregue o NotaSync.");
+    }
+    if (file.size > 75 * 1024 * 1024 || (previousFile && previousFile.size > 75 * 1024 * 1024)) {
+      throw new Error("Arquivo acima de 75 MB: tamanho não suportado nesta versão para evitar travamento do navegador.");
     }
 
     progress(3, "Lendo arquivo...");
     log(`Arquivo recebido: ${file.name} (${formatBytes(file.size)}).`);
 
-    const previousStatusMap = await loadPreviousStatusMap(previousFile);
+    const previousSnapshot = await loadPreviousSnapshot(previousFile);
+    const previousStatusMap = previousSnapshot.statuses;
     const buffer = chooseEncoding(await file.arrayBuffer());
     await yieldToBrowser();
 
@@ -660,6 +738,15 @@
     let existingCount = 0;
     let newCount = 0;
     const priorityCounts = { P1: 0, P2: 0, P3: 0, P4: 0, P5: 0, SEM_FAIXA: 0 };
+    const currentKeys = new Set();
+    const outageCells = new Map();
+    const outageMatches = [];
+    const reappeared = [];
+    const earlierMissingKeys = new Set(previousSnapshot.history
+      .filter(row => String(row[2]).includes("Não localizada"))
+      .map(row => normalizeKey(row[1])));
+    let currentDuplicates = 0;
+    let unsafeNumericKeys = 0;
 
     const orderSource = originalHeader[layout.orderSourceIndex];
     const stateSource = originalHeader[layout.stateSourceIndex];
@@ -680,16 +767,50 @@
         const values = layout.selectedColumns.map(item => sourceRow[item.sourceIndex] ?? "");
         while (values.length < layout.header.length) values.push("");
 
-        const orderKey = String(values[layout.orderIndex] ?? "").trim();
+        if (typeof values[layout.orderIndex] === "number" &&
+            !Number.isSafeInteger(values[layout.orderIndex])) unsafeNumericKeys++;
+        const displayOrder = String(values[layout.orderIndex] ?? "").trim();
+        const orderKey = normalizeKey(displayOrder);
+        if (orderKey) {
+          if (currentKeys.has(orderKey)) currentDuplicates++;
+          currentKeys.add(orderKey);
+        }
 
         if (previousFile) {
           if (orderKey && previousStatusMap.has(orderKey)) {
-            values[layout.statusIndex] = previousStatusMap.get(orderKey) || "";
+            const previous = previousStatusMap.get(orderKey);
+            const usablePrevious = !previousSnapshot.conflictKeys.has(orderKey);
+            values[layout.statusIndex] = mergeSummary(values[layout.statusIndex], previous.summary, usablePrevious);
             existingCount++;
           } else {
-            values[layout.statusIndex] = "N/A";
+            values[layout.statusIndex] = mergeSummary(values[layout.statusIndex], "", true);
             newCount++;
+            if (orderKey && earlierMissingKeys.has(orderKey)) reappeared.push(displayOrder);
           }
+        }
+
+        // Procura em todas as colunas da origem (inclusive colunas ignoradas na saída).
+        const matches = [];
+        sourceRow.forEach((cell, sourceIndex) => {
+          if (isTotalOutage(cell)) matches.push(sourceIndex);
+        });
+        const redIndexes = new Set();
+        const foundFields = new Set(matches.map(i => originalHeader[i] || `Coluna ${i + 1}`));
+        layout.selectedColumns.forEach(item => {
+          if (matches.includes(item.sourceIndex)) redIndexes.add(item.outputIndex);
+        });
+        // Inclui valores do resumo reaproveitado após o cruzamento.
+        values.forEach((cell, outputIndex) => {
+          if (isTotalOutage(cell)) {
+            redIndexes.add(outputIndex);
+            foundFields.add(layout.header[outputIndex]);
+          }
+        });
+        if (matches.length || redIndexes.size) {
+          // Se a expressão só estava em coluna ignorada, destacamos a TSK.
+          if (!redIndexes.size) redIndexes.add(layout.orderIndex);
+          outageCells.set(output.length, redIndexes);
+          outageMatches.push({ key: displayOrder || `(linha ${r + 1})`, fields: [...foundFields].join(", ") });
         }
 
         for (const dateIndex of [layout.slaEndIndex, layout.nttCreatedIndex]) {
@@ -744,108 +865,67 @@
       log(`Faixas: P1=${priorityCounts.P1} | P2=${priorityCounts.P2} | P3=${priorityCounts.P3} | P4=${priorityCounts.P4} | P5=${priorityCounts.P5} | Sem faixa=${priorityCounts.SEM_FAIXA}.`);
     }
     log(`${dateCount} valores de data reconhecidos e convertidos.`);
+    if (currentDuplicates) log(`⚠ ${currentDuplicates} linha(s) de TSK duplicada(s) na planilha atual. Confira antes de usar os dados.`, "err");
+    if (unsafeNumericKeys) log(`⚠ ${unsafeNumericKeys} chaves numéricas longas podem ter perdido precisão no Excel de origem. Confira esses identificadores.`, "err");
+
+    const missing = previousFile ? compareActive(previousStatusMap, currentKeys) : [];
+    const bulkReview = previousFile && needsReview(missing.length, previousStatusMap.size, currentKeys.size);
+    const now = new Date();
+    const comparisonTime = now.toLocaleString("pt-BR");
+    const history = previousSnapshot.history.slice();
+    for (const item of missing) {
+      history.push([comparisonTime, item.displayKey || item.key, "Não localizada na consulta atual", "Possível normalização — verificar", item.summary || "", previousFile.name, file.name]);
+    }
+    for (const key of reappeared) {
+      history.push([comparisonTime, key, "Reapareceu na consulta atual", "Ativa novamente", "", previousFile.name, file.name]);
+    }
+    $("missingCount").textContent = String(missing.length);
+    $("outageCount").textContent = String(outageMatches.length);
+    $("reappearedCount").textContent = String(reappeared.length);
+    $("activityPanel").hidden = false;
+    renderActivityList("missingList", missing, item => [item.displayKey || item.key, "Não localizada — possível normalização, verificar."]);
+    renderActivityList("outageList", outageMatches, item => [item.key, `Indisponibilidade Total • ${item.fields}`]);
+    if (bulkReview) {
+      const alertBox = $("scopeWarning");
+      alertBox.hidden = false;
+      alertBox.textContent = `Atenção: ${missing.length} de ${previousStatusMap.size} TSKs anteriores não aparecem na lista atual. Confira se os arquivos têm a mesma abrangência, período e filtro. Nenhuma foi confirmada como encerrada automaticamente.`;
+      log("⚠ Grande variação de TSKs. Confirme filtros e abrangência antes de considerar as ausências como normalização.", "err");
+    }
+    if (missing.length) log(`${missing.length} TSK(s) não localizada(s). Histórico atualizado; a lista ativa contém apenas registros atuais.`, "ok");
+    if (reappeared.length) log(`${reappeared.length} TSK(s) reapareceram após registro anterior de ausência.`, "ok");
+    if (outageMatches.length) log(`${outageMatches.length} TSK(s) com "Indisponibilidade Total" identificada(s) e destacada(s) em vermelho.`, "err");
 
     progress(72, "Criando planilha...");
     await yieldToBrowser();
 
-    const ws = XLSX.utils.aoa_to_sheet(output, { cellDates: true });
-
-    const dateIndexes = [layout.slaEndIndex, layout.nttCreatedIndex].filter(index => index >= 0);
-    for (let r = 1; r < output.length; r++) {
-      for (const c of dateIndexes) {
-        const value = output[r][c];
-        if (value instanceof Date && !Number.isNaN(value.getTime())) {
-          const cellRef = XLSX.utils.encode_cell({ r, c });
-          ws[cellRef] = { v: value, t: "d", z: DATE_FORMAT };
-        }
-      }
-    }
-
-    ws["!cols"] = calculateColumnWidths(output).map(wch => ({ wch }));
-
-    const lastRow = Math.max(1, output.length);
-    const lastCol = layout.header.length - 1;
-    ws["!ref"] = XLSX.utils.encode_range({
-      s: { r: 0, c: 0 },
-      e: { r: lastRow - 1, c: lastCol }
+    const wb = new ExcelJS.Workbook();
+    wb.creator = "OrbyttaCore";
+    wb.lastModifiedBy = "NotaSync SmartSync";
+    wb.created = new Date();
+    wb.title = "NotaSync - Notas na fila";
+    wb.subject = 'Linhas com Estado "Não iniciado" e movimentações de TSK';
+    addFormattedSheet(wb, SHEET_NAME, output, {
+      outageCells,
+      dateIndexes: [layout.slaEndIndex, layout.nttCreatedIndex].filter(c => c >= 0)
     });
-    ws["!autofilter"] = {
-      ref: `A1:${XLSX.utils.encode_col(lastCol)}${lastRow}`
-    };
-
-    const thinBorder = {
-      top: { style: "thin", color: { rgb: "B7B7B7" } },
-      bottom: { style: "thin", color: { rgb: "B7B7B7" } },
-      left: { style: "thin", color: { rgb: "B7B7B7" } },
-      right: { style: "thin", color: { rgb: "B7B7B7" } }
-    };
-
-    for (let r = 0; r < output.length; r++) {
-      for (let c = 0; c < layout.header.length; c++) {
-        const ref = XLSX.utils.encode_cell({ r, c });
-        if (!ws[ref]) ws[ref] = { v: "", t: "s" };
-        const isHeader = r === 0;
-
-        ws[ref].s = {
-          border: thinBorder,
-          alignment: isHeader
-            ? { vertical: "center", horizontal: "center", wrapText: true }
-            : { vertical: "center", horizontal: "left", wrapText: false },
-          font: isHeader
-            ? { bold: true, color: { rgb: "000000" } }
-            : { color: { rgb: "000000" } },
-          fill: isHeader
-            ? { patternType: "solid", fgColor: { rgb: "FFF200" } }
-            : { patternType: "solid", fgColor: { rgb: "FFFFFF" } }
-        };
-      }
+    // A aba de histórico nunca é tratada como lista ativa no próximo cruzamento.
+    if (previousFile || history.length) {
+      addFormattedSheet(wb, HISTORY_SHEET, [HISTORY_HEADER, ...history]);
     }
 
-    ws["!rows"] = [{ hpt: 30 }];
-
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, SHEET_NAME);
-    wb.Props = {
-      Title: "Filtrado - Não iniciado",
-      Subject: 'Linhas com Estado "Não iniciado"',
-      Author: "Fábio Gonçalves",
-      CreatedDate: new Date()
-    };
-
-    progress(88, "Validando células de data...");
+    progress(88, "Validando resultados...");
     await yieldToBrowser();
-
     const dateTests = [
       ["02/09/26 14:37", 2026, 8, 2, 14, 37, 0],
       ["01/09/2026 10:37:33", 2026, 8, 1, 10, 37, 33]
     ];
-
     for (const [text, y, mo, d, h, mi, se] of dateTests) {
       const testDate = parseBrazilDate(text);
-      if (!testDate ||
-          testDate.getFullYear() !== y ||
-          testDate.getMonth() !== mo ||
-          testDate.getDate() !== d ||
-          testDate.getHours() !== h ||
-          testDate.getMinutes() !== mi ||
-          testDate.getSeconds() !== se) {
-        throw new Error(`Falha na validação do parser de datas: ${text}`);
+      if (!testDate || testDate.getFullYear() !== y || testDate.getMonth() !== mo ||
+          testDate.getDate() !== d || testDate.getHours() !== h ||
+          testDate.getMinutes() !== mi || testDate.getSeconds() !== se) {
+        throw new Error(`Falha ao validar parser de datas: ${text}`);
       }
-    }
-
-    let realDateCells = 0;
-    for (let r = 1; r < output.length; r++) {
-      for (const c of dateIndexes) {
-        const cellRef = XLSX.utils.encode_cell({ r, c });
-        const cell = ws[cellRef];
-        if (cell && cell.t === "d" && cell.z === DATE_FORMAT && cell.v instanceof Date) {
-          realDateCells++;
-        }
-      }
-    }
-
-    if (dateCount > 0 && realDateCells !== dateCount) {
-      throw new Error(`Falha na validação das células de data: ${realDateCells}/${dateCount}`);
     }
 
     generatedWorkbook = wb;
@@ -853,6 +933,7 @@
     log(`Aba criada: "${SHEET_NAME}".`, "ok");
     log(`Arquivo pronto: ${outputFileName}.`, "ok");
     log(`Saída operacional gerada com ${layout.header.length} colunas reconhecidas.`, "ok");
+    if (previousFile) log(`Aba "${HISTORY_SHEET}" com ${history.length} evento(s).`, "ok");
 
     downloadBtn.disabled = false;
     updateActionState("download");
@@ -960,6 +1041,10 @@
     downloadBtn.disabled = true;
     $("existingCount").textContent = "0";
     $("newCount").textContent = "0";
+    $("missingCount").textContent = "0";
+    $("outageCount").textContent = "0";
+    $("reappearedCount").textContent = "0";
+    resetActivity();
     log(`Planilha anterior selecionada: ${file.name}.`);
     if (selectedFile) updateActionState("process");
   }
@@ -987,19 +1072,30 @@
     }
   });
 
-  downloadBtn.addEventListener("click", () => {
-    if (!generatedWorkbook) return;
-
+  downloadBtn.addEventListener("click", async () => {
+    if (!generatedWorkbook || downloadBtn.disabled) return;
+    downloadBtn.disabled = true;
     try {
-      XLSX.writeFile(generatedWorkbook, outputFileName, {
-        bookType: "xlsx",
-        cellDates: true
-      });
+      progress(95, "Preparando download do Excel...");
+      const buffer = await generatedWorkbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = outputFileName;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+      progress(100, "Concluído. Arquivo preparado para download.");
       log(`Download iniciado: ${outputFileName}.`, "ok");
       downloadBtn.classList.remove("btn-attention");
-      setActionHint("Arquivo gerado com sucesso. Se necessário, você pode processar um novo arquivo a qualquer momento.");
+      setActionHint("XLSX preparado com destaque vermelho e histórico. Guarde o arquivo para o próximo cruzamento.");
     } catch (error) {
       log("Erro ao gerar o XLSX: " + (error?.message || error), "err");
+      progress(0, "Erro ao preparar o download.");
+    } finally {
+      downloadBtn.disabled = false;
     }
   });
 })();
