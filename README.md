@@ -1,4 +1,4 @@
-# NotaSync 1.5.0 — SmartSync
+# NotaSync 1.5.1 — SmartSync
 
 Ferramenta web estática da **OrbyttaCore** para leitura de CSV/CVS/XLS/XLSX, filtragem por `Estado = Não iniciado`, cruzamento de TSKs e exportação XLSX. Todo o processamento das planilhas acontece **no navegador**; o app não contém backend, banco de dados ou envio dos arquivos a um servidor.
 

@@ -683,7 +683,7 @@
 
   async function processFile(file) {
     generatedWorkbook = null;
-    outputFileName = getOutputFileName(file.name);
+    outputFileName = getOutputFileName(file.name).replace(/\.xlsx$/i, "-SmartSync-1.5.1.xlsx");
     downloadBtn.disabled = true;
 
     if (!window.XLSX || !window.ExcelJS) {
@@ -789,26 +789,17 @@
           }
         }
 
-        // Procura em todas as colunas da origem (inclusive colunas ignoradas na saída).
-        const matches = [];
-        sourceRow.forEach((cell, sourceIndex) => {
-          if (isTotalOutage(cell)) matches.push(sourceIndex);
-        });
+        // Destaca somente as células visíveis da saída que contenham a expressão
+        // "Indisponibilidade Total". Não colore a TSK por fallback.
         const redIndexes = new Set();
-        const foundFields = new Set(matches.map(i => originalHeader[i] || `Coluna ${i + 1}`));
-        layout.selectedColumns.forEach(item => {
-          if (matches.includes(item.sourceIndex)) redIndexes.add(item.outputIndex);
-        });
-        // Inclui valores do resumo reaproveitado após o cruzamento.
+        const foundFields = new Set();
         values.forEach((cell, outputIndex) => {
           if (isTotalOutage(cell)) {
             redIndexes.add(outputIndex);
             foundFields.add(layout.header[outputIndex]);
           }
         });
-        if (matches.length || redIndexes.size) {
-          // Se a expressão só estava em coluna ignorada, destacamos a TSK.
-          if (!redIndexes.size) redIndexes.add(layout.orderIndex);
+        if (redIndexes.size) {
           outageCells.set(output.length, redIndexes);
           outageMatches.push({ key: displayOrder || `(linha ${r + 1})`, fields: [...foundFields].join(", ") });
         }

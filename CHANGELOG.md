@@ -1,3 +1,9 @@
+## 1.5.1 — Hotfix de validação visual
+
+- Corrigido o carregamento da marca OrbyttaCore com incorporação direta da logo na interface.
+- Ajustada a regra de destaque em vermelho: agora somente as células que contêm a expressão "Indisponibilidade Total" são coloridas.
+- Removido o fallback que destacava a TSK quando a expressão aparecia em colunas não exibidas.
+
 # Histórico de versões — NotaSync
 
 ## 1.5.0 — SmartSync (2026-10-17)
