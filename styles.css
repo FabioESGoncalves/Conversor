@@ -705,3 +705,9 @@
 .activity-item strong a{color:inherit;text-decoration:underline;text-decoration-color:rgba(114,181,255,.55);text-underline-offset:2px}
 .activity-item strong a:hover,.activity-item strong a:focus-visible{color:#75baff;text-decoration-color:currentColor}
 .activity-item.outage strong a:hover,.activity-item.outage strong a:focus-visible{color:#ffb6b6}
+
+/* SmartSync 1.5.4: link de diagnóstico visível após processar */
+.link-preview{display:flex;flex-wrap:wrap;align-items:center;gap:5px;margin-top:6px;font-size:12px}
+.link-preview[hidden]{display:none}
+.link-preview a{font-weight:800;color:#7dc7ff;text-decoration:underline;text-underline-offset:3px}
+.link-preview a:hover{color:#ff8c00}

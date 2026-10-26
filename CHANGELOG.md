@@ -1,3 +1,18 @@
+## 1.5.5 — Correção de hyperlinks CSV → XLSX
+
+- O hyperlink agora é inserido em qualquer célula exportada cujo conteúdo seja exatamente um código TSK válido, sem depender de coluna fixa.
+- Se o CSV possui "Número de Ordem" e "TSK" separadas, a coluna TSK também é preservada.
+- A exportação e o cruzamento continuam usando o ExcelJS e a mesma chave operacional.
+- Sem mudanças na regra de Indisponibilidade Total ou de histórico das TSKs.
+
+## 1.5.4 — ServiceNow LinkCheck
+
+- Validação dos hyperlinks **após a serialização XLSX** usando a biblioteca de leitura já carregada, com amostra por aba (até 15 MB).
+- Contador de links criados e link direto de teste na interface.
+- Melhoria na limpeza de caracteres invisíveis nos códigos TSK antes de construir o endereço.
+- Cache-busting de HTML/JS/CSS com versão 154.
+- Mantidas as regras SmartSync, destaque somente na célula de indisponibilidade total e marca OrbyttaCore.
+
 ## 1.5.3 — ServiceNow Links
 
 - Links clicáveis em identificadores TSK da aba **Filtrado** no XLSX exportado.

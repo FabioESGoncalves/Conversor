@@ -47,3 +47,7 @@ test('não transforma identificadores estranhos ou textos comuns em links', () =
     assert.equal(core.serviceNowTaskUrl(key), null, key);
   }
 });
+
+test('reconhece TSK com caractere invisível copiado da célula', () => {
+  assert.equal(core.serviceNowTaskUrl('TSK\u200B261000114196'), 'https://timbrasil.service-now.com/now/nav/ui/classic/params/target/u_task_evento.do%3Fsys_id%3DTSK261000114196');
+});

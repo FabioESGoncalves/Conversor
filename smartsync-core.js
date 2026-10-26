@@ -14,7 +14,7 @@
   // Aceita somente identificadores TSK alfanuméricos (ex.: TSK261000114196).
   const SERVICE_NOW_TASK_PREFIX = 'https://timbrasil.service-now.com/now/nav/ui/classic/params/target/u_task_evento.do%3Fsys_id%3D';
   function serviceNowTaskUrl(value) {
-    const key = normalizeKey(value);
+    const key = normalizeKey(value).replace(/[\u200B-\u200D\uFEFF]/g, "");
     if (!/^TSK[A-Z0-9]+$/.test(key)) return null;
     return SERVICE_NOW_TASK_PREFIX + encodeURIComponent(key);
   }

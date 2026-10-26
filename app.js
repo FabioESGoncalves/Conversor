@@ -140,8 +140,12 @@
   let selectedFile = null;
   let previousFile = null;
   let generatedWorkbook = null;
+  // Registro criado pela própria rotina exportadora. Usado para verificar os
+  // hiperlinks no conteúdo XLSX serializado, não apenas em objetos simulados.
+  let linkAudit = { count: 0, samples: [] };
 
   currentYear.textContent = String(new Date().getFullYear());
+  document.documentElement.dataset.notasyncJsVersion = "1.5.5";
 
   function renderOutputColumns(columns) {
     const container = $("chips");
@@ -397,6 +401,13 @@
       }
     }
 
+    // Preserva a coluna independente "TSK" se também existir "Número de Ordem".
+    // Não deve aparecer como descartada nos diagnósticos de importação.
+    const extraTskIndex = originalHeader.findIndex((name, index) =>
+      normalizeHeaderForLookup(name) === "tsk" && !usedIndexes.has(index)
+    );
+    if (extraTskIndex >= 0) usedIndexes.add(extraTskIndex);
+
     const extras = originalHeader
       .map((name, index) => ({ name: String(name ?? "").trim(), index }))
       .filter(item => item.name && !usedIndexes.has(item.index));
@@ -490,6 +501,22 @@
       })
       .filter(Boolean)
       .sort((a, b) => a.sourceIndex - b.sourceIndex);
+
+    // Alguns CSVs trazem "Número de Ordem" e "TSK" em colunas diferentes.
+    // Antes a segunda coluna era ignorada, mesmo contendo os chamados.
+    // Preserva TSK sem alterar a chave principal usada no cruzamento.
+    const extraTskIndex = originalHeader.findIndex((name, index) =>
+      normalizeHeaderForLookup(name) === "tsk" &&
+      !selectedColumns.some(item => item.sourceIndex === index)
+    );
+    if (extraTskIndex >= 0) {
+      selectedColumns.push({
+        key: "tskExtra",
+        sourceIndex: extraTskIndex,
+        headerName: originalHeader[extraTskIndex]
+      });
+      selectedColumns.sort((a, b) => a.sourceIndex - b.sourceIndex);
+    }
 
     const header = selectedColumns.map(item => item.headerName);
     const outputIndexByKey = new Map();
@@ -662,14 +689,19 @@
         cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: isHeader ? "FFFFF200" : "FFFFFFFF" } };
         cell.alignment = { vertical: "middle", horizontal: isHeader ? "center" : "left", wrapText: isHeader };
         if (options.dateIndexes?.includes(col - 1) && sourceRow[col - 1] instanceof Date) cell.numFmt = DATE_FORMAT;
-        // A TSK continua visível como texto, mas possui hiperlink no XLSX.
-        // Apenas a coluna indicada recebe links (nunca colunas de descrição ou resumo).
-        if (!isHeader && col - 1 === options.taskColumnIndex) {
+        // O CSV é apenas texto: os hyperlinks nascem NESTA exportação XLSX.
+        // Identifica o código TSK pelo conteúdo exato da célula, sem depender
+        // da posição/nome da coluna de origem ("Número de Ordem", "TSK", etc.).
+        // Campos de descrição com textos maiores não são convertidos em links.
+        if (!isHeader) {
           const taskUrl = serviceNowTaskUrl(sourceRow[col - 1]);
           if (taskUrl) {
             const taskText = String(sourceRow[col - 1]).trim();
             cell.value = { text: taskText, hyperlink: taskUrl, tooltip: "Abrir TSK no ServiceNow" };
             cell.font = { name: "Calibri", size: 11, underline: true, color: { argb: "FF005FB8" } };
+            if (typeof options.onTaskLink === "function") {
+              options.onTaskLink({ sheet: name, address: cell.address, task: taskText, url: taskUrl });
+            }
           }
         }
         if (!isHeader && options.outageCells?.get(rowIndex)?.has(col - 1)) {
@@ -684,6 +716,49 @@
     return ws;
   }
 
+  function renderLinkPreview(sample) {
+    const area = $("linkPreview");
+    if (!area) return;
+    area.replaceChildren();
+    if (!sample) {
+      area.hidden = true;
+      return;
+    }
+    area.hidden = false;
+    const msg = document.createElement("span");
+    msg.textContent = "Teste direto do endereço (abre no navegador): ";
+    const a = document.createElement("a");
+    a.textContent = sample.task;
+    a.href = sample.url;
+    a.target = "_blank";
+    a.rel = "noopener noreferrer";
+    a.title = "Abrir TSK no ServiceNow";
+    area.append(msg, a);
+  }
+
+  // Confere o XLSX gravado de verdade: SheetJS encontra os hiperlinks no XML
+  // das planilhas (não basta verificar cell.value antes da serialização).
+  function validateSerializedHyperlinks(buffer) {
+    if (linkAudit.count === 0) {
+      log('Nenhum link foi criado: confira se a coluna Número de Ordem contém códigos TSK válidos.', 'err');
+      return;
+    }
+    // Evita decodificar uma segunda vez planilhas muito grandes no navegador.
+    if (buffer.byteLength > 15 * 1024 * 1024) {
+      log(`Verificação profunda omitida pelo tamanho do XLSX (${formatBytes(buffer.byteLength)}). ${linkAudit.count} objetos de link preparados.`, 'ok');
+      return;
+    }
+    const exported = XLSX.read(buffer, { type: "array", cellStyles: false, dense: false });
+    for (const sample of linkAudit.samples) {
+      const sheet = exported.Sheets[sample.sheet];
+      const actual = sheet?.[sample.address]?.l?.Target;
+      if (typeof actual !== "string" || actual !== sample.url) {
+        throw new Error(`Falha de verificação do hiperlink em ${sample.sheet}!${sample.address}: o XLSX não preservou o endereço do ServiceNow. Download interrompido para evitar arquivo incompleto.`);
+      }
+    }
+    log(`Validação do XLSX concluída: ${linkAudit.samples.length} hiperlink(s) conferido(s) no arquivo salvo.`, 'ok');
+  }
+
   function resetCounters() {
     $("totalRows").textContent = "0";
     $("filteredRows").textContent = "0";
@@ -694,6 +769,8 @@
     $("missingCount").textContent = "0";
     $("outageCount").textContent = "0";
     $("reappearedCount").textContent = "0";
+    $("linkedTskCount").textContent = "0";
+    renderLinkPreview(null);
     resetActivity();
     $("countP1").textContent = "0";
     $("countP2").textContent = "0";
@@ -705,7 +782,10 @@
 
   async function processFile(file) {
     generatedWorkbook = null;
-    outputFileName = getOutputFileName(file.name).replace(/\.xlsx$/i, "-SmartSync-1.5.3.xlsx");
+    linkAudit = { count: 0, samples: [] };
+    $("linkedTskCount").textContent = "0";
+    renderLinkPreview(null);
+    outputFileName = getOutputFileName(file.name).replace(/\.xlsx$/i, "-SmartSync-1.5.5.xlsx");
     downloadBtn.disabled = true;
 
     if (!window.XLSX || !window.ExcelJS) {
@@ -913,14 +993,20 @@
     wb.created = new Date();
     wb.title = "NotaSync - Notas na fila";
     wb.subject = 'Linhas com Estado "Não iniciado" e movimentações de TSK';
+    const recordLink = item => {
+      linkAudit.count++;
+      // Uma amostra em cada aba garante que ambas foram exportadas corretamente.
+      if (!linkAudit.samples.some(s => s.sheet === item.sheet)) linkAudit.samples.push(item);
+    };
     addFormattedSheet(wb, SHEET_NAME, output, {
       outageCells,
       taskColumnIndex: layout.orderIndex,
+      onTaskLink: recordLink,
       dateIndexes: [layout.slaEndIndex, layout.nttCreatedIndex].filter(c => c >= 0)
     });
     // A aba de histórico nunca é tratada como lista ativa no próximo cruzamento.
     if (previousFile || history.length) {
-      addFormattedSheet(wb, HISTORY_SHEET, [HISTORY_HEADER, ...history], { taskColumnIndex: 1 });
+      addFormattedSheet(wb, HISTORY_SHEET, [HISTORY_HEADER, ...history], { taskColumnIndex: 1, onTaskLink: recordLink });
     }
 
     progress(88, "Validando resultados...");
@@ -939,11 +1025,14 @@
     }
 
     generatedWorkbook = wb;
+    $("linkedTskCount").textContent = String(linkAudit.count);
+    renderLinkPreview(linkAudit.samples[0]);
+    log(`LinkCheck: ${linkAudit.count} hiperlink(s) preparados para exportação.`, linkAudit.count ? 'ok' : 'err');
     progress(100, "Concluído.");
     log(`Aba criada: "${SHEET_NAME}".`, "ok");
     log(`Arquivo pronto: ${outputFileName}.`, "ok");
     log(`Saída operacional gerada com ${layout.header.length} colunas reconhecidas.`, "ok");
-    log('TSKs válidas com links do ServiceNow nas abas "Filtrado" e "Histórico TSKs".', "ok");
+    log('CSV → XLSX: links criados na exportação. No Excel, use Ctrl+clique se necessário.', "ok");
     if (previousFile) log(`Aba "${HISTORY_SHEET}" com ${history.length} evento(s).`, "ok");
 
     downloadBtn.disabled = false;
@@ -1089,6 +1178,7 @@
     try {
       progress(95, "Preparando download do Excel...");
       const buffer = await generatedWorkbook.xlsx.writeBuffer();
+      validateSerializedHyperlinks(buffer);
       const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
