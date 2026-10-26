@@ -12,7 +12,7 @@
   <!-- SheetJS atualizado: leitura de CSV, XLS e XLSX. ExcelJS: escrita XLSX com estilos. -->
   <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
-  <link rel="stylesheet" href="styles.css?v=152">
+  <link rel="stylesheet" href="styles.css?v=153">
 </head>
 <body>
   <div class="shell">
@@ -29,7 +29,7 @@
         </div>
       </div>
       <aside class="author-card" aria-label="Desenvolvido por OrbyttaCore">
-        <div class="author-heading"><p class="author-title">Desenvolvido por</p><span class="brand-version">v1.5.2</span></div>
+        <div class="author-heading"><p class="author-title">Desenvolvido por</p><span class="brand-version">v1.5.3</span></div>
         <!-- A marca oficial fica incorporada neste HTML: não requer caminho /assets, servidor ou cache de imagem. -->
         <div class="orbytta-logo-card" aria-label="Logotipo OrbyttaCore">
           <span class="orbytta-logo-fallback" aria-hidden="true">Orbytta<span>Core</span></span>
@@ -60,7 +60,7 @@
           <h2>Importação e processamento</h2>
           <p>Selecione o arquivo atual em CSV/CVS ou XLSX e, se necessário, informe a planilha tratada anterior. O sistema compara a lista ativa, preserva resumos preenchidos e registra TSKs não localizadas em uma aba de histórico.</p>
         </div>
-        <div class="version-chip">SmartSync • Versão 1.5.2</div>
+        <div class="version-chip">SmartSync • Versão 1.5.3</div>
       </div>
 
       <div class="workflow">
@@ -74,7 +74,7 @@
         </div>
         <div class="step">
           <div class="step-head"><span class="step-index">3</span>Gerar e baixar resultado</div>
-          <p>O arquivo final é montado em XLSX com padronização visual e pronto para uso operacional.</p>
+          <p>O XLSX final contém TSKs clicáveis, com acesso direto aos chamados no ServiceNow.</p>
         </div>
       </div>
 
@@ -185,7 +185,7 @@
       <div class="columns-head">
         <div>
           <h2>Colunas de saída</h2>
-          <p>A saída mantém somente os campos operacionais reconhecidos que existirem na planilha atual. Colunas extras da origem são ignoradas. <b>TSK</b>, <b>P</b> e <b>OBS</b> são reconhecidas internamente como chave, faixa e resumo. Se não existir <b>Status/Resumo</b> ou <b>OBS</b>, somente a coluna <b>Status/Resumo</b> será adicionada ao final.</p>
+          <p>Os códigos TSK ficam clicáveis no XLSX exportado e abrem o chamado no ServiceNow. A saída mantém somente os campos operacionais reconhecidos que existirem na planilha atual. Colunas extras da origem são ignoradas. <b>TSK</b>, <b>P</b> e <b>OBS</b> são reconhecidas internamente como chave, faixa e resumo. Se não existir <b>Status/Resumo</b> ou <b>OBS</b>, somente a coluna <b>Status/Resumo</b> será adicionada ao final.</p>
         </div>
       </div>
       <div class="chips" id="chips"></div>
@@ -194,7 +194,7 @@
     <div class="footer">© <span id="currentYear"></span> <b>NotaSync</b> • Desenvolvido por OrbyttaCore • Processamento local no navegador</div>
   </div>
 
-<script src="smartsync-core.js?v=152"></script>
-<script src="app.js?v=152"></script>
+<script src="smartsync-core.js?v=153"></script>
+<script src="app.js?v=153"></script>
 </body>
 </html>

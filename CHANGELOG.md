@@ -1,3 +1,11 @@
+## 1.5.3 — ServiceNow Links
+
+- Links clicáveis em identificadores TSK da aba **Filtrado** no XLSX exportado.
+- Links também na coluna **TSK** da aba **Histórico TSKs**, inclusive eventos preservados entre exportações.
+- Links clicáveis nas TSKs das listas de movimentações exibidas no painel web.
+- URL segura com domínio fixo e validação do identificador (somente padrões TSK alfanuméricos).
+- Mantidos cruzamento, regras do SmartSync e destaque vermelho restrito ao texto de Indisponibilidade Total.
+
 ## 1.5.2 — LogoFix
 
 - Logotipo oficial enviado pelo usuário incorporado ao HTML em formato JPEG com fundo branco, sem depender de caminhos `/assets/`.

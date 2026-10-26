@@ -7,7 +7,7 @@
   const CHUNK_SIZE = 500;
   const HISTORY_SHEET = "Histórico TSKs";
   const HISTORY_HEADER = ["Data da comparação", "TSK", "Movimentação", "Situação", "Resumo anterior", "Arquivo anterior", "Arquivo atual"];
-  const { normalizeKey, meaningful, isTotalOutage, outageCellIndexes, mergeSummary, compareActive, needsReview } = window.NotaSyncCore;
+  const { normalizeKey, meaningful, isTotalOutage, outageCellIndexes, mergeSummary, compareActive, needsReview, serviceNowTaskUrl } = window.NotaSyncCore;
 
   const INITIAL_OUTPUT_HINTS = [
     "Número de Ordem / TSK",
@@ -615,7 +615,19 @@
       const el = document.createElement("div");
       el.className = "activity-item" + (id === "outageList" ? " outage" : "");
       const heading = document.createElement("strong");
-      heading.textContent = title;
+      const taskUrl = serviceNowTaskUrl(title);
+      if (taskUrl) {
+        // Também permite abrir chamados direto nos painéis de movimentações.
+        const link = document.createElement("a");
+        link.href = taskUrl;
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";
+        link.title = "Abrir chamado no ServiceNow";
+        link.textContent = title;
+        heading.appendChild(link);
+      } else {
+        heading.textContent = title;
+      }
       const desc = document.createElement("span");
       desc.textContent = detail;
       el.append(heading, desc);
@@ -650,6 +662,16 @@
         cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: isHeader ? "FFFFF200" : "FFFFFFFF" } };
         cell.alignment = { vertical: "middle", horizontal: isHeader ? "center" : "left", wrapText: isHeader };
         if (options.dateIndexes?.includes(col - 1) && sourceRow[col - 1] instanceof Date) cell.numFmt = DATE_FORMAT;
+        // A TSK continua visível como texto, mas possui hiperlink no XLSX.
+        // Apenas a coluna indicada recebe links (nunca colunas de descrição ou resumo).
+        if (!isHeader && col - 1 === options.taskColumnIndex) {
+          const taskUrl = serviceNowTaskUrl(sourceRow[col - 1]);
+          if (taskUrl) {
+            const taskText = String(sourceRow[col - 1]).trim();
+            cell.value = { text: taskText, hyperlink: taskUrl, tooltip: "Abrir TSK no ServiceNow" };
+            cell.font = { name: "Calibri", size: 11, underline: true, color: { argb: "FF005FB8" } };
+          }
+        }
         if (!isHeader && options.outageCells?.get(rowIndex)?.has(col - 1)) {
           cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFFE4E6" } };
           cell.font = { name: "Calibri", size: 11, bold: true, color: { argb: "FF9F1239" } };
@@ -683,7 +705,7 @@
 
   async function processFile(file) {
     generatedWorkbook = null;
-    outputFileName = getOutputFileName(file.name).replace(/\.xlsx$/i, "-SmartSync-1.5.2.xlsx");
+    outputFileName = getOutputFileName(file.name).replace(/\.xlsx$/i, "-SmartSync-1.5.3.xlsx");
     downloadBtn.disabled = true;
 
     if (!window.XLSX || !window.ExcelJS) {
@@ -893,11 +915,12 @@
     wb.subject = 'Linhas com Estado "Não iniciado" e movimentações de TSK';
     addFormattedSheet(wb, SHEET_NAME, output, {
       outageCells,
+      taskColumnIndex: layout.orderIndex,
       dateIndexes: [layout.slaEndIndex, layout.nttCreatedIndex].filter(c => c >= 0)
     });
     // A aba de histórico nunca é tratada como lista ativa no próximo cruzamento.
     if (previousFile || history.length) {
-      addFormattedSheet(wb, HISTORY_SHEET, [HISTORY_HEADER, ...history]);
+      addFormattedSheet(wb, HISTORY_SHEET, [HISTORY_HEADER, ...history], { taskColumnIndex: 1 });
     }
 
     progress(88, "Validando resultados...");
@@ -920,6 +943,7 @@
     log(`Aba criada: "${SHEET_NAME}".`, "ok");
     log(`Arquivo pronto: ${outputFileName}.`, "ok");
     log(`Saída operacional gerada com ${layout.header.length} colunas reconhecidas.`, "ok");
+    log('TSKs válidas com links do ServiceNow nas abas "Filtrado" e "Histórico TSKs".', "ok");
     if (previousFile) log(`Aba "${HISTORY_SHEET}" com ${history.length} evento(s).`, "ok");
 
     downloadBtn.disabled = false;
