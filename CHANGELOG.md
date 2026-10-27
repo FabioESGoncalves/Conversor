@@ -1,3 +1,9 @@
+## 1.5.6 — Links discretos (2026-10-26)
+
+- TSKs continuam com hyperlinks no XLSX, mas passam a usar a mesma cor `#243449`, fonte Calibri 11 e nenhum sublinhado.
+- Alteração visual restrita às células TSK exportadas; destino ServiceNow, histórico, cruzamento e destaque de Indisponibilidade Total permanecem inalterados.
+- Versão visível e parâmetros de cache atualizados para evitar carregar o app.js antigo após a publicação no GitHub Pages.
+
 ## 1.5.5 — Correção de hyperlinks CSV → XLSX
 
 - O hyperlink agora é inserido em qualquer célula exportada cujo conteúdo seja exatamente um código TSK válido, sem depender de coluna fixa.

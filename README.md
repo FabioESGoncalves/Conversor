@@ -1,4 +1,4 @@
-# NotaSync 1.5.5 — SmartSync
+# NotaSync 1.5.6 — SmartSync
 
 Ferramenta web estática da **OrbyttaCore** para leitura de CSV/CVS/XLS/XLSX, filtragem por `Estado = Não iniciado`, cruzamento de TSKs e exportação XLSX. Todo o processamento das planilhas acontece **no navegador**; o app não contém backend, banco de dados ou envio dos arquivos a um servidor.
 
@@ -62,7 +62,7 @@ node --test tests/*.test.js
 
 ### Publicação correta no GitHub Pages (1.5.5)
 
-1. Extraia o ZIP e copie **o conteúdo interno** da pasta `NotaSync-1.5.5-ServiceNow-Links/` para a **raiz** da branch publicada no GitHub Pages. Não crie uma pasta extra.
+1. Extraia o ZIP e copie **o conteúdo interno** da pasta `NotaSync-1.5.6-Links-Discretos/` para a **raiz** da branch publicada no GitHub Pages. Não crie uma pasta extra.
 2. Confirme que o `index.html` publicado mostra `v1.5.5` no canto superior direito da área OrbyttaCore. Sem isso, a versão acessada ainda é antiga.
 3. A marca está incorporada ao `index.html`; o arquivo `logo-orbyttacore-v152.jpg` é fornecido como recurso extra de inspeção, mas não é necessário para a marca aparecer.
 4. Se o badge não mudar, confira **Settings → Pages** para identificar branch e pasta da publicação e abra a URL em aba anônima.
@@ -81,3 +81,10 @@ node --test tests/*.test.js
 - Toda célula exportada contendo somente um identificador TSK válido vira um hyperlink (independente do nome ou posição da coluna).
 - Quando o CSV possui "Número de Ordem" e "TSK" como colunas separadas, ambas são preservadas; o cruzamento mantém a chave que já era usada.
 - O contador "Links ServiceNow" mostra quantos hyperlinks foram preparados e a validação verifica uma amostra do arquivo serializado antes do download (até 15 MB).
+
+
+### 1.5.6 — Estilo discreto de hyperlinks
+
+- O XLSX tem links clicáveis nos códigos TSK, mas visualmente são texto comum: cor escura (#243449), sem sublinhado.
+- No Excel para Windows, use **Ctrl + clique** caso o programa exija para abrir links.
+- Ao passar o mouse, o Excel ainda pode indicar que existe um link: isso é normal e não impede o estilo discreto da célula.

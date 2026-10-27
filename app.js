@@ -145,7 +145,7 @@
   let linkAudit = { count: 0, samples: [] };
 
   currentYear.textContent = String(new Date().getFullYear());
-  document.documentElement.dataset.notasyncJsVersion = "1.5.5";
+  document.documentElement.dataset.notasyncJsVersion = "1.5.6";
 
   function renderOutputColumns(columns) {
     const container = $("chips");
@@ -698,7 +698,9 @@
           if (taskUrl) {
             const taskText = String(sourceRow[col - 1]).trim();
             cell.value = { text: taskText, hyperlink: taskUrl, tooltip: "Abrir TSK no ServiceNow" };
-            cell.font = { name: "Calibri", size: 11, underline: true, color: { argb: "FF005FB8" } };
+            // Mantém o link clicável sem aparência de hyperlink: mesma fonte e cor
+            // das demais células, sem azul ou sublinhado.
+            cell.font = { name: "Calibri", size: 11, underline: false, color: { argb: "FF243449" } };
             if (typeof options.onTaskLink === "function") {
               options.onTaskLink({ sheet: name, address: cell.address, task: taskText, url: taskUrl });
             }
@@ -785,7 +787,7 @@
     linkAudit = { count: 0, samples: [] };
     $("linkedTskCount").textContent = "0";
     renderLinkPreview(null);
-    outputFileName = getOutputFileName(file.name).replace(/\.xlsx$/i, "-SmartSync-1.5.5.xlsx");
+    outputFileName = getOutputFileName(file.name).replace(/\.xlsx$/i, "-SmartSync-1.5.6.xlsx");
     downloadBtn.disabled = true;
 
     if (!window.XLSX || !window.ExcelJS) {

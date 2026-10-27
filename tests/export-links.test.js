@@ -52,7 +52,10 @@ test('exportador formata TSK ativa como hyperlink e não transforma demais célu
   const row1 = ws.rows[1].cells;
   assert.equal(row1[0].value.text, 'TSK261000114196');
   assert.equal(row1[0].value.hyperlink, serviceNowTaskUrl('TSK261000114196'));
-  assert.equal(row1[0].font.underline, true);
+  assert.equal(row1[0].font.underline, false);
+  assert.equal(row1[0].font.color.argb, 'FF243449');
+  assert.equal(row1[0].font.name, 'Calibri');
+  assert.equal(row1[0].font.size, 11);
   assert.equal(row1[1].value, 'Não iniciado');
   assert.equal(ws.rows[2].cells[0].value, 'OUTRO123');
   assert.equal(ws.rows[2].cells[0].font.underline, undefined);
@@ -67,6 +70,7 @@ test('exportador insere hyperlink na coluna TSK do histórico', () => {
     ['23/10/2026', 'TSK261000114196', 'Possível normalização']
   ], { taskColumnIndex: 1 });
   assert.equal(ws.rows[1].cells[1].value.hyperlink, serviceNowTaskUrl('TSK261000114196'));
+  assert.equal(ws.rows[1].cells[1].font.underline, false);
   assert.equal(ws.rows[1].cells[0].value, '23/10/2026');
   assert.equal(ws.rows[1].cells[2].value, 'Possível normalização');
 });
